@@ -30,6 +30,19 @@ impl Db {
             .set_filterable_attributes(&["chat_id"])
             .await
             .unwrap();
+        self.0
+            .index("messages")
+            .set_ranking_rules([
+                "words",
+                "typo",
+                "proximity",
+                "attribute",
+                "sort",
+                "exactness",
+                "date:desc",
+            ])
+            .await
+            .unwrap();
         self.0.create_index("chats", Some("id")).await.unwrap();
         self.0
             .index("chats")
