@@ -7,7 +7,7 @@ services:
     volumes:
       - ./history:/app/history
     environment:
-      - TELOXIDE_TOKEN="xxx:xxx"
+      - TELOXIDE_TOKEN=xxx:xxx
       - MEILISEARCH_HOST=http://meilisearch:7700
       - TZ=Asia/Shanghai
       - RUST_LOG=INFO

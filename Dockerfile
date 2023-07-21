@@ -1,20 +1,16 @@
-FROM rust:slim as build
+FROM clux/muslrust:stable as build
 WORKDIR /app
 
 COPY ./ /app
 
-RUN apt-get update; \
-    apt-get install -y --no-install-recommends pkg-config libssl-dev; \
-    cargo build --release;
+RUN cargo build --release;
 
-FROM debian:bullseye-slim as app
+FROM alpine as app
 WORKDIR /app
 
-COPY --from=build /app/target/release/bot /app/bot
-COPY --from=build /app/target/release/import /app/import
-RUN apt-get update; \
-    apt-get install -y --no-install-recommends ca-certificates; \
-    mkdir /app/history
+COPY --from=build /app/target/x86_64-unknown-linux-musl/release/bot /app/bot
+COPY --from=build /app/target/x86_64-unknown-linux-musl/release/import /app/import
+RUN mkdir /app/history
 
 ENV MEILISEARCH_HOST http://meilisearch:7700
 ENV TELOXIDE_TOKEN ""
