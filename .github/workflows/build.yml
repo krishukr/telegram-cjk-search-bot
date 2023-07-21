@@ -61,7 +61,7 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.REGITRY }}/${{ github.repository }}:dev
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}:dev
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
