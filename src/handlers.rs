@@ -169,9 +169,9 @@ pub async fn inline_handler(
                         InputMessageContent::Text(
                             InputMessageContentText::new(format!(
                                 r#"「 {} 」 from <a href="{}">{}</a>"#,
-                                &m.text,
+                                html_escape::encode_text(&m.text),
                                 m.link(),
-                                &m.from,
+                                html_escape::encode_text(&m.from),
                             ))
                             .parse_mode(teloxide::types::ParseMode::Html),
                         ),
