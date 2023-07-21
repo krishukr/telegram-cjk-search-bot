@@ -3,7 +3,8 @@ WORKDIR /app
 
 COPY ./ /app
 
-RUN cargo build --release
+RUN apk add build-base pkgconfig openssl-dev;\ 
+    cargo build --release;
 
 FROM alpine as app
 WORKDIR /app
