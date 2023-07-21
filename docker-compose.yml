@@ -1,12 +1,6 @@
 version: '3'
 
 services:
-  meilisearch:
-    image: getmeili/meilisearch:v1.2
-    restart: unless-stopped
-    volumes:
-      - ./meili_data:/meili_data
-
   bot:
     image: ghcr.io/krishukr/telegram-cjk-saerch-bot:dev
     restart: unless-stopped
@@ -17,3 +11,10 @@ services:
       - MEILISEARCH_HOST=http://meilisearch:7700
       - TZ=Asia/Shanghai
       - RUST_LOG=INFO
+    depends_on:
+      - meilisearch
+  meilisearch:
+    image: getmeili/meilisearch:v1.2
+    restart: unless-stopped
+    volumes:
+      - ./meili_data:/meili_data
