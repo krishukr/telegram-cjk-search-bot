@@ -1,7 +1,7 @@
 <div align="center">
 <h1>telegram-CJK-search-bot</h1>
 
-A simple message searching bot that support CJK. 
+A simple message searching bot that supports CJK. 
 </div>
 
 ### Features
