@@ -8,7 +8,7 @@ services:
       - ./meili_data:/meili_data
 
   bot:
-    build: .
+    image: ghcr.io/krishukr/telegram-cjk-saerch-bot:dev
     restart: unless-stopped
     volumes:
       - ./history:/app/history
