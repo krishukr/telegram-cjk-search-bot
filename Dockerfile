@@ -1,16 +1,17 @@
-FROM rust:alpine as build
+FROM rust:slim as build
 WORKDIR /app
 
 COPY ./ /app
 
-RUN apk add build-base pkgconfig openssl-dev;\ 
-    cargo build --target x86_64-unknown-linux-musl --release;
+RUN apt-get update; \
+    apt-get install -y --no-install-recommends pkg-config libssl-dev; \
+    cargo build --release;
 
-FROM alpine as app
+FROM debian:bullseye-slim as app
 WORKDIR /app
 
-COPY --from=build /app/target/x86_64-unknown-linux-musl/release/bot /app/bot
-COPY --from=build /app/target/x86_64-unknown-linux-musl/release/import /app/import
+COPY --from=build /app/target/release/bot /app/bot
+COPY --from=build /app/target/release/import /app/import
 RUN mkdir /app/history
 
 ENV MEILISEARCH_HOST http://meilisearch:7700
