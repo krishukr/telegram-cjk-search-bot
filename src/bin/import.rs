@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use std::fs;
 use std::path::PathBuf;
+use teloxide::prelude::*;
 use teloxide::types::ChatId;
 
 #[derive(Serialize, Deserialize)]
@@ -29,6 +30,7 @@ struct Message {
     date_unixtime: String,
     from: Option<String>,
     from_id: Option<String>,
+    via_bot: Option<String>,
     text_entities: Vec<Entitiy>,
 }
 
@@ -47,6 +49,7 @@ async fn main() {
     pretty_env_logger::init();
 
     let cli = Cli::parse();
+    let bot_username = format!("@{}", Bot::from_env().get_me().await.unwrap().username());
     let mut msgs: Vec<types::Message> = vec![];
     let mut handles = vec![];
 
@@ -58,6 +61,11 @@ async fn main() {
     for m in content.messages {
         if m.r#type != "message" {
             continue;
+        }
+        if let Some(u) = m.via_bot {
+            if u == bot_username {
+                continue;
+            }
         }
         if let Some(from_id) = &m.from_id {
             let mut txt = String::new();
