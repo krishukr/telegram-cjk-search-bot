@@ -48,52 +48,44 @@ async fn main() {
 
     let content = from_str::<Content>(&fs::read_to_string(cli.file).unwrap()).unwrap();
     assert!(content.r#type.contains("supergroup"));
-    log::info!("parse succeed.");
-
-    let mut successful_count: usize = 0;
     for m in content.messages {
         if m.r#type != "message" {
             continue;
         }
-        let key = format!("-100{}_{}", &content.id, m.id);
-        let mut text = String::new();
-        m.text_entities.iter().for_each(|ele| {
-            text.push_str(&ele.text);
-        });
-        if text.is_empty() {
-            continue;
-        }
-        if let None = m.from_id {
-            continue;
-        }
-        let from = format!(
-            "{}@{}",
-            match m.from {
-                Some(f) => f,
-                None => format!("已销号{}", m.from_id.unwrap()),
-            },
-            &content.name.clone()
-        );
-        let chat_id =
-            teloxide::types::ChatId(format!("-100{}", content.id).parse::<i64>().unwrap());
-        let date = chrono::DateTime::from_utc(
-            chrono::NaiveDateTime::from_timestamp_opt(m.date_unixtime.parse::<i64>().unwrap(), 0)
-                .unwrap(),
-            chrono::Utc,
-        );
-        successful_count += 1;
-        tokio::spawn(async move {
+        if let Some(from_id) = &m.from_id {
+            let mut txt = String::new();
+            m.text_entities.iter().for_each(|ele| {
+                txt.push_str(&ele.text);
+            });
+            if txt.is_empty() {
+                continue;
+            }
             Db::new()
                 .insert_message(&types::Message {
-                    key,
-                    text,
-                    from,
+                    key: format!("-100{}_{}", &content.id, m.id),
+                    text: txt,
+                    from: format!(
+                        "{}@{}",
+                        match m.from {
+                            Some(f) => f,
+                            None => format!("已销号{}", from_id),
+                        },
+                        &content.name
+                    ),
                     id: m.id,
-                    chat_id,
-                    date,
+                    chat_id: teloxide::types::ChatId(
+                        format!("-100{}", content.id).parse::<i64>().unwrap(),
+                    ),
+                    date: chrono::DateTime::from_utc(
+                        chrono::NaiveDateTime::from_timestamp_opt(
+                            m.date_unixtime.parse::<i64>().unwrap(),
+                            0,
+                        )
+                        .unwrap(),
+                        chrono::Utc,
+                    ),
                 })
                 .await;
-        });
+        }
     }
-    log::info!("insert {} messages.", successful_count);
 }
