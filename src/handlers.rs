@@ -193,7 +193,7 @@ pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
     }
 
     Db::new()
-        .insert_message(&crate::types::Message::from(&msg))
+        .insert_message(&vec![crate::types::Message::from(&msg)])
         .await;
 
     Ok(())

@@ -32,6 +32,8 @@ struct Message {
     text_entities: Vec<Entitiy>,
 }
 
+const INSERT_BATCH_LIMIT: usize = 1000;
+
 #[derive(Parser)]
 #[command(author, version, long_about = None)]
 #[command(about = "Import chat history from a json file to meilisearch db.")]
@@ -45,9 +47,14 @@ async fn main() {
     pretty_env_logger::init();
 
     let cli = Cli::parse();
+    let mut msgs: Vec<types::Message> = vec![];
+    let mut handles = vec![];
 
     let content = from_str::<Content>(&fs::read_to_string(cli.file).unwrap()).unwrap();
     assert!(content.r#type.contains("supergroup"));
+    log::info!("parse succeed.");
+
+    let mut successful_count: usize = 0;
     for m in content.messages {
         if m.r#type != "message" {
             continue;
@@ -60,32 +67,51 @@ async fn main() {
             if txt.is_empty() {
                 continue;
             }
-            Db::new()
-                .insert_message(&types::Message {
-                    key: format!("-100{}_{}", &content.id, m.id),
-                    text: txt,
-                    from: format!(
-                        "{}@{}",
-                        match m.from {
-                            Some(f) => f,
-                            None => format!("已销号{}", from_id),
-                        },
-                        &content.name
-                    ),
-                    id: m.id,
-                    chat_id: teloxide::types::ChatId(
-                        format!("-100{}", content.id).parse::<i64>().unwrap(),
-                    ),
-                    date: chrono::DateTime::from_utc(
-                        chrono::NaiveDateTime::from_timestamp_opt(
-                            m.date_unixtime.parse::<i64>().unwrap(),
-                            0,
-                        )
-                        .unwrap(),
-                        chrono::Utc,
-                    ),
-                })
-                .await;
+            msgs.push(types::Message {
+                key: format!("-100{}_{}", &content.id, m.id),
+                text: txt,
+                from: format!(
+                    "{}@{}",
+                    match m.from {
+                        Some(f) => f,
+                        None => format!("已销号{}", from_id),
+                    },
+                    &content.name
+                ),
+                id: m.id,
+                chat_id: teloxide::types::ChatId(
+                    format!("-100{}", content.id).parse::<i64>().unwrap(),
+                ),
+                date: chrono::DateTime::from_utc(
+                    chrono::NaiveDateTime::from_timestamp_opt(
+                        m.date_unixtime.parse::<i64>().unwrap(),
+                        0,
+                    )
+                    .unwrap(),
+                    chrono::Utc,
+                ),
+            });
+            successful_count += 1;
+            if msgs.len() >= INSERT_BATCH_LIMIT {
+                handles.push(tokio::spawn(async move {
+                    let imsgs = msgs;
+                    Db::new().insert_message(&imsgs).await;
+                }));
+                msgs = vec![];
+            }
         }
     }
+    if !msgs.is_empty() {
+        handles.push(tokio::spawn(async move {
+            let imsgs = msgs;
+            Db::new().insert_message(&imsgs).await;
+        }));
+    }
+
+    log::info!(
+        "insert {} messages. waiting for complete.",
+        successful_count
+    );
+    futures::future::join_all(handles).await;
+    log::info!("done.");
 }

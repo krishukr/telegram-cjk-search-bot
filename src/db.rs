@@ -56,11 +56,14 @@ impl Db {
             .unwrap();
     }
 
-    pub async fn insert_message(self, msg: &Message) {
-        log::debug!("{}", serde_json::to_string_pretty(&msg).unwrap());
+    pub async fn insert_message(self, msgs: &Vec<Message>) {
+        if msgs.is_empty() {
+            return;
+        }
+        log::debug!("{}", serde_json::to_string_pretty(&msgs).unwrap());
         self.0
             .index("messages")
-            .add_documents(&[msg], Some("key"))
+            .add_documents(msgs, None)
             .await
             .unwrap();
     }
@@ -92,7 +95,7 @@ impl Db {
     pub async fn insert_chat_with_id(self, id: ChatId) {
         self.0
             .index("chats")
-            .add_documents(&[Chat::from(id)], Some("id"))
+            .add_documents(&[Chat::from(id)], None)
             .await
             .unwrap();
     }

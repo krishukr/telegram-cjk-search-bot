@@ -30,7 +30,6 @@ Want to index history messages as well? just keep on.
 1. export the messages in JSON format.
 1. place the `result.json` in `./history` .
 1. `docker compose run --rm bot /app/import`
-1. wait patiently :)
 
 Since there is no documents for exported messages, anything can happen during this process.
 
