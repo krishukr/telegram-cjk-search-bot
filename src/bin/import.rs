@@ -32,7 +32,7 @@ struct Message {
     text_entities: Vec<Entitiy>,
 }
 
-const INSERT_BATCH_LIMIT: usize = 1000;
+const INSERT_BATCH_LIMIT: usize = 2000;
 
 #[derive(Parser)]
 #[command(author, version, long_about = None)]
@@ -95,7 +95,7 @@ async fn main() {
             if msgs.len() >= INSERT_BATCH_LIMIT {
                 handles.push(tokio::spawn(async move {
                     let imsgs = msgs;
-                    Db::new().insert_message(&imsgs).await;
+                    Db::new().insert_messages(&imsgs).await;
                 }));
                 msgs = vec![];
             }
@@ -104,7 +104,7 @@ async fn main() {
     if !msgs.is_empty() {
         handles.push(tokio::spawn(async move {
             let imsgs = msgs;
-            Db::new().insert_message(&imsgs).await;
+            Db::new().insert_messages(&imsgs).await;
         }));
     }
 
