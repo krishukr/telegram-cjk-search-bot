@@ -46,7 +46,7 @@ impl Db {
         self.0.create_index("chats", Some("id")).await.unwrap();
         self.0
             .index("chats")
-            .set_searchable_attributes(&(Vec::new() as Vec<String>))
+            .set_searchable_attributes(Vec::<String>::new())
             .await
             .unwrap();
         self.0
@@ -80,10 +80,10 @@ impl Db {
         self.0
             .index("messages")
             .search()
-            .with_query(&text)
+            .with_query(text)
             .with_filter(&format!("chat_id IN {:?}", chats))
             .with_attributes_to_crop(Selectors::Some(&[("text", None)]))
-            .with_crop_length(match Self::check_contain_utf8(&text) {
+            .with_crop_length(match Self::check_contain_utf8(text) {
                 true => 15,
                 false => 6,
             })
@@ -105,8 +105,7 @@ impl Db {
     }
 
     pub async fn filter_chat_with_id(self, id: ChatId) -> Option<Chat> {
-        match self
-            .0
+        self.0
             .index("chats")
             .search()
             .with_filter(&format!("id = {}", id))
@@ -115,10 +114,7 @@ impl Db {
             .unwrap()
             .hits
             .get(0)
-        {
-            Some(c) => Some(c.result),
-            None => None,
-        }
+            .map(|c| c.result)
     }
 
     pub async fn get_all_chats(self) -> Vec<ChatId> {
@@ -152,5 +148,11 @@ impl Db {
             }
         }
         false
+    }
+}
+
+impl Default for Db {
+    fn default() -> Self {
+        Self::new()
     }
 }

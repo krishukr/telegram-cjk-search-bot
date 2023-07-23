@@ -14,8 +14,7 @@ async fn main() {
     let bot = Bot::from_env();
     Db::new().init().await;
 
-    let user_in_groups_cache: Arc<Mutex<HashMap<UserId, Vec<types::Chat>>>> =
-        Arc::new(Mutex::new(HashMap::new()));
+    let user_in_groups_cache = Arc::new(Mutex::new(HashMap::<UserId, Vec<types::Chat>>::new()));
 
     let handler = dptree::entry()
         .branch(

@@ -2,14 +2,14 @@ use telegram_cjk_search_bot::*;
 
 use clap::Parser;
 use db::Db;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::from_str;
 use std::fs;
 use std::path::PathBuf;
 use teloxide::prelude::*;
 use teloxide::types::ChatId;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct Content {
     name: String,
     r#type: String,
@@ -17,13 +17,12 @@ struct Content {
     messages: Vec<Message>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct Entitiy {
-    r#type: String,
     text: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct Message {
     id: i32,
     r#type: String,
@@ -50,7 +49,7 @@ async fn main() {
 
     let cli = Cli::parse();
     let bot_username = format!("@{}", Bot::from_env().get_me().await.unwrap().username());
-    let mut msgs: Vec<types::Message> = vec![];
+    let mut msgs = vec![];
     let mut handles = vec![];
 
     let content = from_str::<Content>(&fs::read_to_string(cli.file).unwrap()).unwrap();

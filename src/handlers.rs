@@ -90,7 +90,7 @@ pub async fn message_handler(msg: Message, me: Me) -> ResponseResult<()> {
 
     match msg.text() {
         Some(t) => {
-            if let Err(_) = Command::parse(t, me.username()) {
+            if Command::parse(t, me.username()).is_err() {
                 log::debug!("no command got. store it to db");
                 normal_message_handler(msg).await?;
             }
@@ -148,7 +148,7 @@ pub async fn inline_handler(
     let search_results = Db::new()
         .search_message_with_filter_chats(
             &q.query,
-            &handler_groups_cache
+            handler_groups_cache
                 .lock()
                 .await
                 .get(&q.from.id)
@@ -187,7 +187,7 @@ pub async fn inline_handler(
 }
 
 pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
-    if let None = Db::new().filter_chat_with_id(msg.chat.id).await {
+    if Db::new().filter_chat_with_id(msg.chat.id).await.is_none() {
         log::debug!("{} not a enabled chat", &msg.chat.id);
         return Ok(());
     }

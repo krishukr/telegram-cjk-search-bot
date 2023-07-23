@@ -9,7 +9,7 @@ pub struct Chat {
 
 impl std::fmt::Debug for Chat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.id.to_string())
+        write!(f, "{}", self.id)
     }
 }
 
@@ -221,8 +221,9 @@ mod types_tests {
 
     #[test]
     fn message_text_from_caption_test() {
-        let msg = Message::from(&serde_json::from_str::<teloxide::types::Message>(
-            r#"{
+        let msg = Message::from(
+            &serde_json::from_str::<teloxide::types::Message>(
+                r#"{
             "message_id": 3,
             "message_thread_id": null,
             "date": 1689731481,
@@ -263,14 +264,17 @@ mod types_tests {
             "is_automatic_forward": false,
             "has_protected_content": false
         }"#,
-        ).unwrap());
+            )
+            .unwrap(),
+        );
         assert_eq!(msg.text, "112")
     }
 
     #[test]
     fn message_link_test() {
-        let msg = Message::from(&serde_json::from_str::<teloxide::types::Message>(
-            r#"{
+        let msg = Message::from(
+            &serde_json::from_str::<teloxide::types::Message>(
+                r#"{
             "message_id": 3,
             "message_thread_id": null,
             "date": 1689731481,
@@ -311,7 +315,9 @@ mod types_tests {
             "is_automatic_forward": false,
             "has_protected_content": false
         }"#,
-        ).unwrap());
+            )
+            .unwrap(),
+        );
         assert_eq!(msg.link(), "https://t.me/c/1/3")
     }
 }
