@@ -28,7 +28,7 @@ async fn main() {
 
     log::info!("Started");
 
-    Dispatcher::builder(bot.clone(), handler)
+    Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![user_in_groups_cache])
         .enable_ctrlc_handler()
         .build()

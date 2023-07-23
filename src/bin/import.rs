@@ -67,16 +67,17 @@ async fn main() {
             }
         }
         if let Some(from_id) = &m.from_id {
-            let mut txt = String::new();
+            let mut text = String::new();
             m.text_entities.iter().for_each(|ele| {
-                txt.push_str(&ele.text);
+                text.push_str(&ele.text);
             });
-            if txt.is_empty() {
+            let text = text;
+            if text.is_empty() {
                 continue;
             }
             msgs.push(types::Message {
                 key: format!("-100{}_{}", &content.id, m.id),
-                text: txt,
+                text,
                 from: format!(
                     "{}@{}",
                     match m.from {
@@ -100,18 +101,22 @@ async fn main() {
             });
             successful_count += 1;
             if msgs.len() >= INSERT_BATCH_LIMIT {
-                handles.push(tokio::spawn(async move {
+                handles.push(tokio::spawn({
                     let imsgs = msgs;
-                    Db::new().insert_messages(&imsgs).await;
+                    async move {
+                        Db::new().insert_messages(&imsgs).await;
+                    }
                 }));
                 msgs = vec![];
             }
         }
     }
     if !msgs.is_empty() {
-        handles.push(tokio::spawn(async move {
+        handles.push(tokio::spawn({
             let imsgs = msgs;
-            Db::new().insert_messages(&imsgs).await;
+            async move {
+                Db::new().insert_messages(&imsgs).await;
+            }
         }));
     }
 

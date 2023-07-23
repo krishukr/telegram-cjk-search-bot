@@ -110,8 +110,7 @@ pub async fn inline_handler(
     groups_cache: Arc<Mutex<HashMap<UserId, Vec<crate::types::Chat>>>>,
 ) -> ResponseResult<()> {
     log::debug!("{}", serde_json::to_string_pretty(&q).unwrap());
-    let handler_groups_cache = groups_cache.clone();
-    if !handler_groups_cache.lock().await.contains_key(&q.from.id) {
+    if !groups_cache.lock().await.contains_key(&q.from.id) {
         log::debug!(
             "{} does not have a permissioned chat list. generate it.",
             q.from.id
@@ -121,7 +120,7 @@ pub async fn inline_handler(
             match bot.get_chat_member(c, q.from.id).await {
                 Ok(_) => {
                     log::debug!("{} have a member of {}", c, q.from.id);
-                    handler_groups_cache
+                    groups_cache
                         .lock()
                         .await
                         .entry(q.from.id)
@@ -133,22 +132,24 @@ pub async fn inline_handler(
                 }
             }
         }
-        let expire_groups_cache = groups_cache.clone();
-        tokio::spawn(async move {
-            log::debug!(
-                "permissioned chat list of {} is scheduled to expire in 120 seconds",
-                q.from.id
-            );
-            time::sleep(time::Duration::from_secs(120)).await;
-            expire_groups_cache.lock().await.remove(&q.from.id);
-            log::debug!("permissioned chat list of {} has expired", q.from.id)
+        tokio::spawn({
+            let expire_groups_cache = groups_cache.clone();
+            async move {
+                log::debug!(
+                    "permissioned chat list of {} is scheduled to expire in 120 seconds",
+                    q.from.id
+                );
+                time::sleep(time::Duration::from_secs(120)).await;
+                expire_groups_cache.lock().await.remove(&q.from.id);
+                log::debug!("permissioned chat list of {} has expired", q.from.id)
+            }
         });
     }
 
     let search_results = Db::new()
         .search_message_with_filter_chats(
             &q.query,
-            handler_groups_cache
+            groups_cache
                 .lock()
                 .await
                 .get(&q.from.id)
