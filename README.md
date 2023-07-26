@@ -10,8 +10,6 @@ A simple message searching bot that supports CJK.
 - A edited message will be updated in database as well.
 - A user can search messages in chats already joined only.
 
-# Still WIP with NO Promise to work
-
 ### Quick Start
 
 1. Create a bot by using [@BotFather](https://t.me/botfather) and take the token for later usage.
