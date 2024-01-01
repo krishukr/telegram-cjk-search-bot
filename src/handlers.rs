@@ -110,40 +110,44 @@ pub async fn inline_handler(
     groups_cache: Arc<Mutex<HashMap<UserId, Vec<crate::types::Chat>>>>,
 ) -> ResponseResult<()> {
     log::debug!("{}", serde_json::to_string_pretty(&q).unwrap());
-    if !groups_cache.lock().await.contains_key(&q.from.id) {
-        log::debug!(
-            "{} does not have a permissioned chat list. generate it.",
-            q.from.id
-        );
-        let all_chats = Db::new().get_all_chats().await;
-        for c in all_chats {
-            match bot.get_chat_member(c, q.from.id).await {
-                Ok(_) => {
-                    log::debug!("{} have a member of {}", c, q.from.id);
-                    groups_cache
-                        .lock()
-                        .await
-                        .entry(q.from.id)
-                        .or_insert(Vec::new())
-                        .push(crate::types::Chat::from(c));
-                }
-                Err(_) => {
-                    log::debug!("{} does not have a member of {}", c, q.from.id);
+
+    {
+        let groups_cache_pointer = groups_cache.lock().await;
+        if !groups_cache_pointer.contains_key(&q.from.id) {
+            log::debug!(
+                "{} does not have a permissioned chat list. generate it.",
+                q.from.id
+            );
+            let all_chats = Db::new().get_all_chats().await;
+            for c in all_chats {
+                match bot.get_chat_member(c, q.from.id).await {
+                    Ok(_) => {
+                        log::debug!("{} have a member of {}", c, q.from.id);
+                        groups_cache
+                            .lock()
+                            .await
+                            .entry(q.from.id)
+                            .or_insert(Vec::new())
+                            .push(crate::types::Chat::from(c));
+                    }
+                    Err(_) => {
+                        log::debug!("{} does not have a member of {}", c, q.from.id);
+                    }
                 }
             }
+            tokio::spawn({
+                let expire_groups_cache = groups_cache.clone();
+                async move {
+                    log::debug!(
+                        "permissioned chat list of {} is scheduled to expire in 120 seconds",
+                        q.from.id
+                    );
+                    time::sleep(time::Duration::from_secs(120)).await;
+                    expire_groups_cache.lock().await.remove(&q.from.id);
+                    log::debug!("permissioned chat list of {} has expired", q.from.id)
+                }
+            });
         }
-        tokio::spawn({
-            let expire_groups_cache = groups_cache.clone();
-            async move {
-                log::debug!(
-                    "permissioned chat list of {} is scheduled to expire in 120 seconds",
-                    q.from.id
-                );
-                time::sleep(time::Duration::from_secs(120)).await;
-                expire_groups_cache.lock().await.remove(&q.from.id);
-                log::debug!("permissioned chat list of {} has expired", q.from.id)
-            }
-        });
     }
 
     let search_results = Db::new()
