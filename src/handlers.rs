@@ -112,7 +112,7 @@ pub async fn inline_handler(
     log::debug!("{}", serde_json::to_string_pretty(&q).unwrap());
 
     {
-        let groups_cache_pointer = groups_cache.lock().await;
+        let mut groups_cache_pointer = groups_cache.lock().await;
         if !groups_cache_pointer.contains_key(&q.from.id) {
             log::debug!(
                 "{} does not have a permissioned chat list. generate it.",
@@ -123,9 +123,7 @@ pub async fn inline_handler(
                 match bot.get_chat_member(c, q.from.id).await {
                     Ok(_) => {
                         log::debug!("{} have a member of {}", c, q.from.id);
-                        groups_cache
-                            .lock()
-                            .await
+                        groups_cache_pointer
                             .entry(q.from.id)
                             .or_insert(Vec::new())
                             .push(crate::types::Chat::from(c));
