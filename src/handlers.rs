@@ -120,15 +120,15 @@ pub async fn inline_handler(
             );
             let all_chats = Db::new().get_all_chats().await;
             for c in all_chats {
-                match bot.get_chat_member(c, q.from.id).await {
-                    Ok(_) => {
+                match check_chat_member(bot.clone(), c, q.from.id).await {
+                    true => {
                         log::debug!("{} have a member of {}", c, q.from.id);
                         groups_cache_pointer
                             .entry(q.from.id)
                             .or_insert(Vec::new())
                             .push(crate::types::Chat::from(c));
                     }
-                    Err(_) => {
+                    false => {
                         log::debug!("{} does not have a member of {}", c, q.from.id);
                     }
                 }
@@ -200,4 +200,11 @@ pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
         .await;
 
     Ok(())
+}
+
+async fn check_chat_member(bot: Bot, chat_id: ChatId, user_id: UserId) -> bool {
+    match bot.get_chat_member(chat_id, user_id).await {
+        Ok(m) => m.is_present(),
+        Err(_) => false,
+    }
 }
