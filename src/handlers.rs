@@ -130,6 +130,7 @@ pub async fn inline_handler(
                     }
                     false => {
                         log::debug!("{} does not have a member of {}", c, q.from.id);
+                        groups_cache_pointer.entry(q.from.id).or_insert(Vec::new());
                     }
                 }
             }
