@@ -120,18 +120,15 @@ pub async fn inline_handler(
             );
             let all_chats = Db::new().get_all_chats().await;
             for c in all_chats {
-                match check_chat_member(bot.clone(), c, q.from.id).await {
-                    true => {
-                        log::debug!("{} have a member of {}", c, q.from.id);
-                        groups_cache_pointer
-                            .entry(q.from.id)
-                            .or_insert(Vec::new())
-                            .push(crate::types::Chat::from(c));
-                    }
-                    false => {
-                        log::debug!("{} does not have a member of {}", c, q.from.id);
-                        groups_cache_pointer.entry(q.from.id).or_insert(Vec::new());
-                    }
+                if is_chat_memeber_present(bot.clone(), c, q.from.id).await {
+                    log::debug!("{} have a member of {}", c, q.from.id);
+                    groups_cache_pointer
+                        .entry(q.from.id)
+                        .or_insert(Vec::new())
+                        .push(crate::types::Chat::from(c));
+                } else {
+                    log::debug!("{} does not have a member of {}", c, q.from.id);
+                    groups_cache_pointer.entry(q.from.id).or_insert(Vec::new());
                 }
             }
             tokio::spawn({
@@ -203,7 +200,7 @@ pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
     Ok(())
 }
 
-async fn check_chat_member(bot: Bot, chat_id: ChatId, user_id: UserId) -> bool {
+async fn is_chat_memeber_present(bot: Bot, chat_id: ChatId, user_id: UserId) -> bool {
     match bot.get_chat_member(chat_id, user_id).await {
         Ok(m) => m.is_present(),
         Err(_) => false,

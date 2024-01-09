@@ -10,7 +10,7 @@ services:
       - TELOXIDE_TOKEN=xxx:xxx
       - MEILISEARCH_HOST=http://meilisearch:7700
       - TZ=Asia/Shanghai
-      - RUST_LOG=INFO
+      - RUST_LOG=INFO,telegram_cjk_search_bot=INFO
     depends_on:
       - meilisearch
   meilisearch:
