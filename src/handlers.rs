@@ -196,3 +196,8 @@ async fn is_chat_memeber_present(
         Err(e) => Err(e),
     }
 }
+
+#[cfg(feature = "private_tests")]
+#[cfg(test)]
+#[path = "./private_tests/handlers_test.rs"]
+mod handlers_test;

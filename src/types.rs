@@ -72,7 +72,7 @@ impl Message {
 
 #[cfg(test)]
 mod types_tests {
-    use crate::types::*;
+    use super::*;
 
     #[test]
     fn message_date_format_test() {

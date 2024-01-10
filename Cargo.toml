@@ -17,3 +17,6 @@ chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.3.17", features = ["derive"] }
 html-escape = "0.2"
 futures = "0.3"
+
+[features]
+private_tests = []
