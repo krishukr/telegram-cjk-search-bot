@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use teloxide::types::ChatId;
+use teloxide::types::{ChatId, MessageId};
 
 #[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct Chat {
@@ -33,18 +33,17 @@ impl From<&teloxide::types::Message> for Message {
     fn from(msg: &teloxide::types::Message) -> Self {
         Self {
             key: format!("{}_{}", msg.chat.id, msg.id),
-            text: match msg.text() {
-                Some(text) => text.to_string(),
-                None => msg.caption().unwrap().to_string(),
-            },
-            from: match msg.sender_chat() {
-                Some(c) => c.title().unwrap().to_string(),
-                None => format!(
-                    "{}@{}",
-                    msg.from().unwrap().full_name(),
-                    msg.chat.title().unwrap()
-                ),
-            },
+            text: msg.text().or(msg.caption()).unwrap().to_string(),
+            from: msg
+                .sender_chat()
+                .map(|c| c.title().unwrap().to_string())
+                .unwrap_or_else(|| {
+                    format!(
+                        "{}@{}",
+                        msg.from().unwrap().full_name(),
+                        msg.chat.title().unwrap()
+                    )
+                }),
             id: msg.id.0,
             chat_id: msg.chat.id,
             date: msg.date,
@@ -61,12 +60,9 @@ impl Message {
     }
 
     pub fn link(&self) -> String {
-        let chat_id_string = self.chat_id.to_string();
-        format!(
-            "https://t.me/c/{}/{}",
-            &chat_id_string[4..chat_id_string.len()],
-            self.id
-        )
+        teloxide::types::Message::url_of(self.chat_id, None, MessageId(self.id))
+            .unwrap()
+            .to_string()
     }
 }
 
@@ -279,7 +275,7 @@ mod types_tests {
             "message_thread_id": null,
             "date": 1689731481,
             "chat": {
-                "id": -1001,
+                "id": -1001952114514,
                 "title": "test",
                 "type": "supergroup",
                 "is_forum": false
@@ -318,6 +314,6 @@ mod types_tests {
             )
             .unwrap(),
         );
-        assert_eq!(msg.link(), "https://t.me/c/1/3")
+        assert_eq!(msg.link(), "https://t.me/c/1952114514/3")
     }
 }
