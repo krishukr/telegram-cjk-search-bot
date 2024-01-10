@@ -32,7 +32,6 @@ pub enum Command {
 }
 
 pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
-    log::debug!("{}", serde_json::to_string_pretty(&msg).unwrap());
     match cmd {
         Command::Help => {
             log::debug!("got command help");
@@ -70,39 +69,24 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
     Ok(())
 }
 
-pub async fn message_handler(msg: Message, me: Me) -> ResponseResult<()> {
+pub async fn message_handler(bot: Bot, msg: Message, me: Me) -> ResponseResult<()> {
     log::debug!("{}", serde_json::to_string_pretty(&msg).unwrap());
-    if !msg.chat.is_supergroup() {
-        return Ok(());
-    }
-    if let Some(b) = &msg.via_bot {
-        if b.id == me.id {
-            return Ok(());
-        };
-    }
-    if let Some(u) = msg.from() {
-        if u.is_bot {
-            return Ok(());
-        }
-    }
-    if msg.text().is_none() && msg.caption().is_none() {
-        return Ok(());
-    }
 
-    match msg.text() {
-        Some(t) => {
-            if Command::parse(t, me.username()).is_err() {
-                log::debug!("no command got. store it to db");
-                normal_message_handler(msg).await?;
-            }
+    if !msg.chat.is_supergroup()
+        || msg.via_bot.as_ref().map_or(false, |b| b.id == me.id)
+        || msg.from().map_or(false, |u| u.is_bot)
+    {
+        Ok(())
+    } else if let Some(text) = msg.text() {
+        match Command::parse(text, me.username()) {
+            Ok(cmd) => command_handler(bot, msg, cmd).await,
+            Err(_) => normal_message_handler(msg).await,
         }
-        None => {
-            log::debug!("caption only. store it to db");
-            normal_message_handler(msg).await?;
-        }
+    } else if msg.caption().is_some() {
+        normal_message_handler(msg).await
+    } else {
+        Ok(())
     }
-
-    Ok(())
 }
 
 pub async fn inline_handler(

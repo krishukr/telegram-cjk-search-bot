@@ -17,11 +17,6 @@ async fn main() {
     let user_in_groups_cache = Arc::new(Mutex::new(HashMap::<UserId, Vec<types::Chat>>::new()));
 
     let handler = dptree::entry()
-        .branch(
-            Update::filter_message()
-                .filter_command::<Command>()
-                .endpoint(command_handler),
-        )
         .branch(Update::filter_message().endpoint(message_handler))
         .branch(Update::filter_edited_message().endpoint(message_handler))
         .branch(Update::filter_inline_query().endpoint(inline_handler));
