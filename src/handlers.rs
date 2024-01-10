@@ -6,6 +6,7 @@ use teloxide::{
         Me,
     },
     utils::command::BotCommands,
+    ApiError, RequestError,
 };
 use tokio::sync::Mutex;
 use tokio::time;
@@ -120,7 +121,7 @@ pub async fn inline_handler(
             );
             let all_chats = Db::new().get_all_chats().await;
             for c in all_chats {
-                if is_chat_memeber_present(bot.clone(), c, q.from.id).await {
+                if is_chat_memeber_present(bot.clone(), c, q.from.id).await? {
                     log::debug!("{} have a member of {}", c, q.from.id);
                     groups_cache_pointer
                         .entry(q.from.id)
@@ -200,9 +201,14 @@ pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
     Ok(())
 }
 
-async fn is_chat_memeber_present(bot: Bot, chat_id: ChatId, user_id: UserId) -> bool {
+async fn is_chat_memeber_present(
+    bot: Bot,
+    chat_id: ChatId,
+    user_id: UserId,
+) -> ResponseResult<bool> {
     match bot.get_chat_member(chat_id, user_id).await {
-        Ok(m) => m.is_present(),
-        Err(_) => false,
+        Ok(m) => Ok(m.is_present()),
+        Err(RequestError::Api(ApiError::UserNotFound)) => Ok(false),
+        Err(e) => Err(e),
     }
 }
