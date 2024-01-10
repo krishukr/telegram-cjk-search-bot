@@ -74,6 +74,6 @@ jobs:
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
           script: |
-            cd ./telegram-cjk-saerch-bot
+            cd ./telegram-cjk-search-bot
             sudo docker compose pull
             sudo docker compose up -d

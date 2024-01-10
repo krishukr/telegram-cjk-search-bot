@@ -2,7 +2,7 @@ version: '3'
 
 services:
   bot:
-    image: ghcr.io/krishukr/telegram-cjk-saerch-bot:dev
+    image: ghcr.io/krishukr/telegram-cjk-search-bot:dev
     restart: unless-stopped
     volumes:
       - ./history:/app/history
