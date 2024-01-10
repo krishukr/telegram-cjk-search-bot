@@ -1,4 +1,4 @@
-name: Build
+name: Build and Deploy
 
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
@@ -80,3 +80,17 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+  ssh-deploy:
+    runs-on: self-hosted
+    needs: [build]
+    steps:
+      - name: Deploy
+        if: github.event_name != 'pull_request'
+        uses: appleboy/ssh-action@v1.0.2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          script: ${{ secrets.DEPLOY_SCRIPT }}
