@@ -1,43 +1,42 @@
 <div align="center">
-<h1>telegram-CJK-search-bot</h1>
+<h1>Telegram-CJK-Search-Bot</h1>
 
-A simple message searching bot that supports CJK. 
+A simple message-searching bot that supports CJK (Chinese, Japanese, Korean) languages.
 </div>
 
 ### Features
 
-- Relevance sorted search message.
-- A edited message will be updated in database as well.
-- A user can search messages in chats already joined only.
+- Search messages sorted by relevance.
+- Edited messages will be updated in the database as well.
+- Users can only search messages in chats they have already joined.
 
 ### Quick Start
 
-1. Create a bot by using [@BotFather](https://t.me/botfather) and take the token for later usage.
-1. Edit the bot to turn inline mode ON and turn privacy mode OFF.
-1. find a place to store all the data.
-1. `wget https://raw.githubusercontent.com/krishukr/telegram-cjk-saerch-bot/master/docker-compose.yml`
-1. edit `docker-compose.yml` to replace `TELOXIDE_TOKEN=xxx:xxx` with your token got from BotFather.
+1. Create a bot using [@BotFather](https://t.me/botfather) and save the token for later use.
+1. Edit the bot to turn ON inline mode and turn OFF privacy mode.
+1. Find a place to store all the data.
+1. `wget https://raw.githubusercontent.com/krishukr/telegram-cjk-search-bot/master/docker-compose.yml`
+1. Edit the `docker-compose.yml` file to replace `TELOXIDE_TOKEN=xxx:xxx` with your token obtained from BotFather.
 1. `docker compose up -d`
-1. add the bot to chat you create or operate. **Notice: Supergroup Only.** 
-1. send command `/start@your_bot`.
+1. Add the bot to a chat of which you are the owner or admin. **Note: Supergroup only.**
+1. Send the command `/start@your_bot` to the bot.
 
-And you are done! All the **future** messages in this chat can be searched by simply inline using your bot like `@your_bot filter` .
+And you're all set! All **future** messages in this chat can be searched by sending your bot inline queries, like so: `@your_bot filter`.
 
-Want to index history messages as well? just keep on.
+Want to index historical messages as well? Just follow these steps:
 
-1. export the messages in JSON format.
-1. place the `result.json` in `./history` .
+1. Export the chat messages in JSON format.
+1. Place the `result.json` file in the `./history` directory.
 1. `docker compose run --rm bot /app/import`
 
-Since there is no documents for exported messages, anything can happen during this process.
+Since there are no documents for exported messages, unexpected issues may arise during this process.
 
-Feel free to reach me if you have any question.
-
+Feel free to reach me if you have any questions.
 
 ### Credits
 
-Powered by blazing fast [meilisearch](https://www.meilisearch.com/).
+Powered by the blazing-fast [Meilisearch](https://www.meilisearch.com/).
 
-Powered by easy-to-use [teloxide](https://github.com/teloxide/teloxide).
+Powered by the easy-to-use [teloxide](https://github.com/teloxide/teloxide).
 
-Insipred by [telegram-search-bot](https://github.com/Taosky/telegram-search-bot).
+Inspired by [telegram-search-bot](https://github.com/Taosky/telegram-search-bot).
