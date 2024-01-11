@@ -55,7 +55,7 @@ async fn main() {
         content.chat_type.contains("supergroup"),
         "Chat type must be 'supergroup'"
     );
-    log::info!("Paresed {} items", content.messages.len());
+    log::info!("Paresed {} items.", content.messages.len());
 
     let (messages_count, handles) = process_messages(content, bot_username);
     log::info!(
@@ -70,6 +70,7 @@ async fn main() {
 fn read_content_from_file(file_path: &PathBuf) -> Content {
     let file_content = fs::read_to_string(file_path)
         .unwrap_or_else(|_| panic!("Failed to read file {:?}", file_path));
+    log::info!("File {} has been read. Parsing...", file_path.display());
     from_str::<Content>(&file_content).expect("Failed to parse content from file")
 }
 
@@ -87,7 +88,6 @@ fn process_messages(
             messages_count += 1;
 
             if messages_batch.len() >= INSERT_BATCH_LIMIT {
-                log::info!("Inserting {} messages...", messages_count);
                 handles.push(spawn_insert_messages_task(Db::new(), messages_batch));
                 messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
             }
