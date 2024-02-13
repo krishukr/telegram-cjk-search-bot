@@ -48,6 +48,20 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
                 {
                     log::debug!("{} is privileged", u.id);
                     Db::new().insert_chat_with_id(msg.chat.id).await;
+                    bot.send_message(
+                        msg.chat.id,
+                        format!(
+                            "Chat {}({}) has started to log messages.",
+                            msg.chat.title().unwrap_or(""),
+                            msg.chat.id
+                        ),
+                    )
+                    .reply_to_message_id(msg.id)
+                    .await?;
+                } else {
+                    bot.send_message(msg.chat.id, "You are not privilieged to do this.")
+                        .reply_to_message_id(msg.id)
+                        .await?;
                 }
             }
         }
@@ -61,6 +75,20 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
                 {
                     log::debug!("{} is privileged", u.id);
                     Db::new().delete_chat_with_id(msg.chat.id).await;
+                    bot.send_message(
+                        msg.chat.id,
+                        format!(
+                            "Chat {}({}) has stopped to log messages.",
+                            msg.chat.title().unwrap_or(""),
+                            msg.chat.id
+                        ),
+                    )
+                    .reply_to_message_id(msg.id)
+                    .await?;
+                } else {
+                    bot.send_message(msg.chat.id, "You are not privilieged to do this.")
+                        .reply_to_message_id(msg.id)
+                        .await?;
                 }
             }
         }
