@@ -8,10 +8,6 @@
     {
       "groupName": "Patch Updates",
       "matchUpdateTypes": ["patch"]
-    },
-    {
-      "groupName": "Other Updates",
-      "matchUpdateTypes": ["minor", "major"]
     }
   ]
 }
