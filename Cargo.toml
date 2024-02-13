@@ -14,7 +14,7 @@ log = "0.4"
 pretty_env_logger = "0.4"
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros"] }
 chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "4.3.17", features = ["derive"] }
+clap = { version = "4.4.18", features = ["derive"] }
 html-escape = "0.2"
 futures = "0.3"
 
