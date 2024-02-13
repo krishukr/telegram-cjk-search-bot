@@ -67,7 +67,7 @@ jobs:
     steps:
       - name: Deploy
         if: github.event_name != 'pull_request'
-        uses: appleboy/ssh-action@v1.0.2
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USERNAME }}
