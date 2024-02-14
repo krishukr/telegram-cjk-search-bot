@@ -1,4 +1,6 @@
 use crate::db::*;
+use cached::proc_macro::cached;
+use futures::{StreamExt, TryStreamExt};
 use teloxide::{
     prelude::*,
     types::{
@@ -8,10 +10,6 @@ use teloxide::{
     utils::command::BotCommands,
     ApiError, RequestError,
 };
-use tokio::sync::Mutex;
-use tokio::time;
-
-use std::{collections::HashMap, sync::Arc};
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -117,57 +115,11 @@ pub async fn message_handler(bot: Bot, msg: Message, me: Me) -> ResponseResult<(
     }
 }
 
-pub async fn inline_handler(
-    bot: Bot,
-    q: InlineQuery,
-    groups_cache: Arc<Mutex<HashMap<UserId, Vec<crate::types::Chat>>>>,
-) -> ResponseResult<()> {
+pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
     log::debug!("{}", serde_json::to_string_pretty(&q).unwrap());
 
-    {
-        let mut groups_cache_pointer = groups_cache.lock().await;
-        if !groups_cache_pointer.contains_key(&q.from.id) {
-            log::debug!(
-                "{} does not have a permissioned chat list. generate it.",
-                q.from.id
-            );
-            let all_chats = Db::new().get_all_chats().await;
-            for c in all_chats {
-                if is_chat_memeber_present(bot.clone(), c, q.from.id).await? {
-                    log::debug!("{} have a member of {}", c, q.from.id);
-                    groups_cache_pointer
-                        .entry(q.from.id)
-                        .or_insert(Vec::new())
-                        .push(crate::types::Chat::from(c));
-                } else {
-                    log::debug!("{} does not have a member of {}", c, q.from.id);
-                    groups_cache_pointer.entry(q.from.id).or_insert(Vec::new());
-                }
-            }
-            tokio::spawn({
-                let expire_groups_cache = groups_cache.clone();
-                async move {
-                    log::debug!(
-                        "permissioned chat list of {} is scheduled to expire in 120 seconds",
-                        q.from.id
-                    );
-                    time::sleep(time::Duration::from_secs(120)).await;
-                    expire_groups_cache.lock().await.remove(&q.from.id);
-                    log::debug!("permissioned chat list of {} has expired", q.from.id)
-                }
-            });
-        }
-    }
-
     let search_results = Db::new()
-        .search_message_with_filter_chats(
-            &q.query,
-            groups_cache
-                .lock()
-                .await
-                .get(&q.from.id)
-                .unwrap_or(&Vec::new()),
-        )
+        .search_message_with_filter_chats(&q.query, &get_user_chats(bot.clone(), q.from.id).await?)
         .await;
     bot.answer_inline_query(
         &q.id,
@@ -213,7 +165,7 @@ pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
     Ok(())
 }
 
-async fn is_chat_memeber_present(
+async fn is_chat_member_present(
     bot: Bot,
     chat_id: ChatId,
     user_id: UserId,
@@ -223,6 +175,30 @@ async fn is_chat_memeber_present(
         Err(RequestError::Api(ApiError::UserNotFound)) => Ok(false),
         Err(e) => Err(e),
     }
+}
+
+#[cached(
+    time = 120,
+    result = true,
+    sync_writes = true,
+    key = "UserId",
+    convert = r#"{ user_id }"#
+)]
+async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<crate::types::Chat>> {
+    log::debug!("uncached get_user_chats {}", user_id);
+    Ok(futures::stream::iter(Db::new().get_all_chats().await)
+        .filter_map(|chat| {
+            let bot = bot.clone();
+            async move {
+                match is_chat_member_present(bot, chat, user_id).await {
+                    Ok(true) => Some(Ok(crate::types::Chat::from(chat))),
+                    Ok(false) => None,
+                    Err(e) => Some(Err(e)),
+                }
+            }
+        })
+        .try_collect()
+        .await?)
 }
 
 #[cfg(feature = "private_tests")]
