@@ -1,4 +1,4 @@
-use crate::db::*;
+use crate::{db::*, types};
 use cached::proc_macro::cached;
 use futures::{StreamExt, TryStreamExt};
 use teloxide::{
@@ -123,28 +123,18 @@ pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
         .await;
     bot.answer_inline_query(
         &q.id,
-        search_results
-            .hits
-            .iter()
-            .map(|m| (&m.result, m.formatted_result.as_ref().unwrap()))
-            .map(|(m, f)| {
-                InlineQueryResult::Article(
-                    InlineQueryResultArticle::new(
-                        &m.key,
-                        f["text"].as_str().unwrap(),
-                        InputMessageContent::Text(
-                            InputMessageContentText::new(format!(
-                                r#"「 {} 」 from <a href="{}">{}</a>"#,
-                                html_escape::encode_text(&m.text),
-                                m.link(),
-                                html_escape::encode_text(&m.from),
-                            ))
-                            .parse_mode(teloxide::types::ParseMode::Html),
-                        ),
-                    )
-                    .description(format!("{}@{}", &m.from, m.format_time())),
-                )
-            }),
+        futures::stream::iter(search_results.hits.into_iter().map(|m| {
+            (
+                m.result,
+                m.formatted_result.unwrap()["text"]
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            )
+        }))
+        .then(|(m, f)| construct_query_result(bot.clone(), m, f))
+        .try_collect::<Vec<_>>()
+        .await?,
     )
     .send()
     .await?;
@@ -159,7 +149,7 @@ pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
     }
 
     Db::new()
-        .insert_messages(&vec![crate::types::Message::from(&msg)])
+        .insert_messages(&vec![types::Message::from(&msg)])
         .await;
 
     Ok(())
@@ -184,14 +174,14 @@ async fn is_chat_member_present(
     key = "UserId",
     convert = r#"{ user_id }"#
 )]
-async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<crate::types::Chat>> {
+async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<types::Chat>> {
     log::debug!("uncached get_user_chats {}", user_id);
     Ok(futures::stream::iter(Db::new().get_all_chats().await)
         .filter_map(|chat| {
             let bot = bot.clone();
             async move {
                 match is_chat_member_present(bot, chat, user_id).await {
-                    Ok(true) => Some(Ok(crate::types::Chat::from(chat))),
+                    Ok(true) => Some(Ok(types::Chat::from(chat))),
                     Ok(false) => None,
                     Err(e) => Some(Err(e)),
                 }
@@ -199,6 +189,84 @@ async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<crate::
         })
         .try_collect()
         .await?)
+}
+
+#[cached(
+    time = 120,
+    result = true,
+    sync_writes = true,
+    key = "ChatId",
+    convert = r#"{ chat_id }"#
+)]
+async fn get_chat_title_from_id(bot: Bot, chat_id: ChatId) -> ResponseResult<String> {
+    Ok(bot
+        .get_chat(chat_id)
+        .await?
+        .title()
+        .map(|s| s.to_string())
+        .unwrap_or("Anonymous".to_string()))
+}
+
+#[cached(
+    time = 120,
+    result = true,
+    sync_writes = true,
+    key = "UserId",
+    convert = r#"{ user_id }"#
+)]
+async fn get_chat_user_fullname(
+    bot: Bot,
+    chat_id: ChatId,
+    user_id: UserId,
+) -> ResponseResult<String> {
+    Ok(bot
+        .get_chat_member(chat_id, user_id)
+        .await?
+        .user
+        .full_name())
+}
+
+async fn generate_from_str(bot: Bot, m: &types::Message) -> ResponseResult<String> {
+    if let Some(from) = &m.from {
+        Ok(from.clone())
+    } else {
+        Ok(format!(
+            "{}@{}",
+            match m.sender.as_ref().unwrap() {
+                types::Sender::User(u) =>
+                    get_chat_user_fullname(bot.clone(), m.chat_id, *u).await?,
+                types::Sender::Chat(c) => get_chat_title_from_id(bot.clone(), *c).await?,
+            },
+            get_chat_title_from_id(bot.clone(), m.chat_id).await?
+        ))
+    }
+}
+
+async fn construct_query_result(
+    bot: Bot,
+    m: types::Message,
+    formatted_result: String,
+) -> ResponseResult<InlineQueryResult> {
+    Ok(InlineQueryResult::Article(
+        InlineQueryResultArticle::new(
+            &m.key,
+            formatted_result,
+            InputMessageContent::Text(
+                InputMessageContentText::new(format!(
+                    r#"「 {} 」 from <a href="{}">{}</a>"#,
+                    html_escape::encode_text(&m.text),
+                    m.link(),
+                    html_escape::encode_text(&generate_from_str(bot.clone(), &m).await?),
+                ))
+                .parse_mode(teloxide::types::ParseMode::Html),
+            ),
+        )
+        .description(format!(
+            "{}@{}",
+            generate_from_str(bot.clone(), &m).await?,
+            m.format_time()
+        )),
+    ))
 }
 
 #[cfg(feature = "private_tests")]

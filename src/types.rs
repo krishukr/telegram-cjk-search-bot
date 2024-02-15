@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use teloxide::types::{ChatId, MessageId};
+use teloxide::types::{ChatId, MessageId, UserId};
 
 #[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct Chat {
@@ -20,10 +20,18 @@ impl From<teloxide::types::ChatId> for Chat {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub enum Sender {
+    User(UserId),
+    Chat(ChatId),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     pub key: String,
     pub text: String,
-    pub from: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+    pub sender: Option<Sender>,
     pub id: i32,
     pub chat_id: ChatId,
     pub date: DateTime<Utc>,
@@ -34,16 +42,12 @@ impl From<&teloxide::types::Message> for Message {
         Self {
             key: format!("{}_{}", msg.chat.id, msg.id),
             text: msg.text().or(msg.caption()).unwrap().to_string(),
-            from: msg
-                .sender_chat()
-                .map(|c| c.title().unwrap().to_string())
-                .unwrap_or_else(|| {
-                    format!(
-                        "{}@{}",
-                        msg.from().unwrap().full_name(),
-                        msg.chat.title().unwrap()
-                    )
-                }),
+            from: None,
+            sender: Some(
+                msg.sender_chat()
+                    .map(|c| Sender::Chat(c.id))
+                    .unwrap_or_else(|| Sender::User(msg.from().unwrap().id)),
+            ),
             id: msg.id.0,
             chat_id: msg.chat.id,
             date: msg.date,
@@ -142,7 +146,13 @@ mod types_tests {
             )
             .unwrap(),
         );
-        assert_eq!(msg.from, "test2");
+        assert_eq!(
+            match msg.sender.unwrap() {
+                Sender::User(_) => panic!(),
+                Sender::Chat(c) => c,
+            },
+            ChatId(-1002)
+        );
     }
 
     #[test]
@@ -177,7 +187,13 @@ mod types_tests {
             )
             .unwrap(),
         );
-        assert_eq!(msg.from, "Foo Bar@test");
+        assert_eq!(
+            match msg.sender.unwrap() {
+                Sender::User(u) => u,
+                Sender::Chat(_) => panic!(),
+            },
+            UserId(1)
+        );
     }
 
     #[test]

@@ -8,7 +8,6 @@ use teloxide::types::ChatId;
 
 #[derive(Deserialize)]
 struct Content {
-    name: String,
     #[serde(rename = "type")]
     chat_type: String,
     id: ChatId,
@@ -26,13 +25,13 @@ struct Message {
     #[serde(rename = "type")]
     message_type: String,
     date_unixtime: String,
-    from: Option<String>,
     from_id: Option<String>,
     via_bot: Option<String>,
     text_entities: Vec<Entity>,
 }
 
 const INSERT_BATCH_LIMIT: usize = 2000;
+const MAX_MARKED_CHANNEL_ID: i64 = -1000000000000;
 
 #[derive(Parser)]
 #[command(author, version, long_about = None)]
@@ -83,7 +82,7 @@ fn process_messages(
     let mut messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
 
     for message in content.messages {
-        if let Some(m) = to_db_message(&bot_username, &message, &content.id, &content.name) {
+        if let Some(m) = to_db_message(&bot_username, &message, &content.id) {
             messages_batch.push(m);
             messages_count += 1;
 
@@ -105,7 +104,6 @@ fn to_db_message(
     bot_username: &str,
     message: &Message,
     chat_id: &ChatId,
-    chat_name: &str,
 ) -> Option<types::Message> {
     if message.message_type != "message"
         || message
@@ -131,14 +129,13 @@ fn to_db_message(
         Some(types::Message {
             key: format!("-100{}_{}", chat_id, message.id),
             text,
-            from: format!(
-                "{}@{}",
-                message
-                    .from
-                    .as_ref()
-                    .unwrap_or(&format!("已销号{}", from_id)),
-                chat_name
-            ),
+            from: None,
+            sender: Some(match from_id.starts_with("user") {
+                true => types::Sender::User(UserId(from_id[4..].parse::<u64>().unwrap())),
+                false => types::Sender::Chat(ChatId(
+                    MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap(),
+                )),
+            }),
             id: message.id,
             chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
             date: chrono::DateTime::from_utc(
@@ -188,7 +185,7 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1), "1").is_none());
+        assert!(to_db_message("1", &msg, &ChatId(1)).is_none());
     }
 
     #[test]
@@ -212,7 +209,7 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1), "1").is_none());
+        assert!(to_db_message("1", &msg, &ChatId(1)).is_none());
     }
 
     #[test]
@@ -236,7 +233,7 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1), "1").is_none());
+        assert!(to_db_message("1", &msg, &ChatId(1)).is_none());
     }
 
     #[test]
@@ -295,10 +292,7 @@ mod import_test {
         );
 
         assert_eq!(
-            serde_json::to_string(
-                &to_db_message("1", &msg, &ChatId(1145141919), "Genshin Impact").unwrap()
-            )
-            .unwrap(),
+            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).unwrap()).unwrap(),
             serde_json::to_string(&genuine_msg).unwrap()
         );
     }
