@@ -1,11 +1,9 @@
-use std::time::Duration;
-
 use meilisearch_sdk::{
     search::{SearchResults, Selectors},
     Client,
     Error::Meilisearch,
     ErrorCode::DocumentNotFound,
-    MeilisearchError,
+    MeilisearchError, TaskInfo,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use teloxide::types::ChatId;
@@ -14,7 +12,7 @@ use crate::types::*;
 
 const GET_LIMIT: usize = 100;
 
-pub struct Db(Client);
+pub struct Db(pub Client);
 
 impl Db {
     pub fn new() -> Self {
@@ -63,8 +61,8 @@ impl Db {
             .unwrap();
     }
 
-    pub async fn insert_messages(self, msgs: &Vec<Message>) {
-        self.insert_documents("messages", msgs, Some("key")).await;
+    pub async fn insert_messages(self, msgs: &Vec<Message>) -> Option<TaskInfo> {
+        self.insert_documents("messages", msgs, Some("key")).await
     }
 
     pub async fn search_message_with_filter_chats(
@@ -138,15 +136,8 @@ impl Db {
             .map(|s: Sender| s.name)
     }
 
-    pub async fn insert_senders(self, senders: &Vec<Sender>) {
-        self.0
-            .index("senders")
-            .add_documents(senders, Some("id"))
-            .await
-            .unwrap()
-            .wait_for_completion(&self.0, None, None)
-            .await
-            .unwrap();
+    pub async fn insert_senders(self, senders: &Vec<Sender>) -> Option<TaskInfo> {
+        self.insert_documents("senders", senders, Some("id")).await
     }
 
     async fn get_one_document<T>(self, index: &str, key: &str) -> Option<T>
@@ -163,34 +154,20 @@ impl Db {
         }
     }
 
-    async fn insert_documents<T>(self, index: &str, docs: &Vec<T>, key: Option<&str>)
+    async fn insert_documents<T>(
+        self,
+        index: &str,
+        docs: &Vec<T>,
+        key: Option<&str>,
+    ) -> Option<TaskInfo>
     where
         T: Serialize,
     {
         if docs.is_empty() {
-            return;
+            return None;
         }
         log::debug!("{}", serde_json::to_string_pretty(docs).unwrap());
-        self.0
-            .index(index)
-            .add_documents(docs, key)
-            .await
-            .unwrap()
-            .wait_for_completion(
-                &self.0,
-                if docs.len() > 100 {
-                    Some(Duration::from_millis(200))
-                } else {
-                    None
-                },
-                if docs.len() > 100 {
-                    Some(Duration::from_secs(300))
-                } else {
-                    None
-                },
-            )
-            .await
-            .unwrap();
+        Some(self.0.index(index).add_documents(docs, key).await.unwrap())
     }
 }
 

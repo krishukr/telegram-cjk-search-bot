@@ -178,7 +178,11 @@ fn spawn_insert_messages_task(
     messages: Vec<types::Message>,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        db.insert_messages(&messages).await;
+        if let Some(t) = db.insert_messages(&messages).await {
+            t.wait_for_completion(&Db::new().0, None, None)
+                .await
+                .unwrap();
+        };
     })
 }
 
