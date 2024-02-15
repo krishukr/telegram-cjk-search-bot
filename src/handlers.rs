@@ -200,32 +200,18 @@ async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<types::
     key = "ChatId",
     convert = r#"{ chat_id }"#
 )]
-async fn get_chat_title_from_id(bot: Bot, chat_id: ChatId) -> ResponseResult<String> {
-    Ok(bot
-        .get_chat(chat_id)
-        .await?
-        .title()
-        .map(|s| s.to_string())
-        .unwrap_or("Anonymous".to_string()))
-}
-
-#[cached(
-    time = 120,
-    result = true,
-    sync_writes = true,
-    key = "UserId",
-    convert = r#"{ user_id }"#
-)]
-async fn get_chat_user_fullname(
-    bot: Bot,
-    chat_id: ChatId,
-    user_id: UserId,
-) -> ResponseResult<String> {
-    Ok(bot
-        .get_chat_member(chat_id, user_id)
-        .await?
-        .user
-        .full_name())
+async fn get_name_from_chat_id(bot: Bot, chat_id: ChatId) -> ResponseResult<String> {
+    match bot.get_chat(chat_id).await {
+        Ok(c) => Ok(c.title().map(|s| s.to_string()).unwrap_or(format!(
+            "{}{}",
+            c.first_name()
+                .map(|s| format!("{} ", s))
+                .unwrap_or("".to_string()),
+            c.last_name().unwrap_or("Anonymous")
+        ))),
+        Err(RequestError::Api(ApiError::ChatNotFound)) => Ok("Anonymous".to_string()),
+        Err(e) => Err(e),
+    }
 }
 
 async fn generate_from_str(bot: Bot, m: &types::Message) -> ResponseResult<String> {
@@ -234,12 +220,8 @@ async fn generate_from_str(bot: Bot, m: &types::Message) -> ResponseResult<Strin
     } else {
         Ok(format!(
             "{}@{}",
-            match m.sender.as_ref().unwrap() {
-                types::Sender::User(u) =>
-                    get_chat_user_fullname(bot.clone(), m.chat_id, *u).await?,
-                types::Sender::Chat(c) => get_chat_title_from_id(bot.clone(), *c).await?,
-            },
-            get_chat_title_from_id(bot.clone(), m.chat_id).await?
+            get_name_from_chat_id(bot.clone(), m.sender.unwrap()).await?,
+            get_name_from_chat_id(bot.clone(), m.chat_id).await?
         ))
     }
 }

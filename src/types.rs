@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use teloxide::types::{ChatId, MessageId, UserId};
+use teloxide::types::{ChatId, MessageId};
 
 #[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct Chat {
@@ -20,18 +20,12 @@ impl From<teloxide::types::ChatId> for Chat {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum Sender {
-    User(UserId),
-    Chat(ChatId),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     pub key: String,
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
-    pub sender: Option<Sender>,
+    pub sender: Option<ChatId>,
     pub id: i32,
     pub chat_id: ChatId,
     pub date: DateTime<Utc>,
@@ -45,8 +39,8 @@ impl From<&teloxide::types::Message> for Message {
             from: None,
             sender: Some(
                 msg.sender_chat()
-                    .map(|c| Sender::Chat(c.id))
-                    .unwrap_or_else(|| Sender::User(msg.from().unwrap().id)),
+                    .map(|c| c.id)
+                    .unwrap_or_else(|| msg.from().unwrap().id.into()),
             ),
             id: msg.id.0,
             chat_id: msg.chat.id,
@@ -146,13 +140,7 @@ mod types_tests {
             )
             .unwrap(),
         );
-        assert_eq!(
-            match msg.sender.unwrap() {
-                Sender::User(_) => panic!(),
-                Sender::Chat(c) => c,
-            },
-            ChatId(-1002)
-        );
+        assert_eq!(msg.sender.unwrap(), ChatId(-1002));
     }
 
     #[test]
@@ -187,13 +175,7 @@ mod types_tests {
             )
             .unwrap(),
         );
-        assert_eq!(
-            match msg.sender.unwrap() {
-                Sender::User(u) => u,
-                Sender::Chat(_) => panic!(),
-            },
-            UserId(1)
-        );
+        assert_eq!(msg.sender.unwrap(), teloxide::types::UserId(1).into());
     }
 
     #[test]

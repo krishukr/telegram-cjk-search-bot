@@ -131,10 +131,8 @@ fn to_db_message(
             text,
             from: None,
             sender: Some(match from_id.starts_with("user") {
-                true => types::Sender::User(UserId(from_id[4..].parse::<u64>().unwrap())),
-                false => types::Sender::Chat(ChatId(
-                    MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap(),
-                )),
+                true => UserId(from_id[4..].parse::<u64>().unwrap()).into(),
+                false => ChatId(MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap()),
             }),
             id: message.id,
             chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
