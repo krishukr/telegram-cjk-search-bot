@@ -1,5 +1,5 @@
 use crate::{db::*, types};
-use cached::proc_macro::cached;
+use cached::{proc_macro::cached, Cached};
 use futures::{StreamExt, TryStreamExt};
 use teloxide::{
     prelude::*,
@@ -56,6 +56,7 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
                     )
                     .reply_to_message_id(msg.id)
                     .await?;
+                    GET_USER_CHATS.lock().await.cache_clear();
                 } else {
                     bot.send_message(msg.chat.id, "You are not privilieged to do this.")
                         .reply_to_message_id(msg.id)
@@ -83,6 +84,7 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
                     )
                     .reply_to_message_id(msg.id)
                     .await?;
+                    GET_USER_CHATS.lock().await.cache_clear();
                 } else {
                     bot.send_message(msg.chat.id, "You are not privilieged to do this.")
                         .reply_to_message_id(msg.id)
