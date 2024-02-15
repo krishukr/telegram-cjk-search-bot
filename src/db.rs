@@ -1,7 +1,13 @@
+use std::time::Duration;
+
 use meilisearch_sdk::{
     search::{SearchResults, Selectors},
     Client,
+    Error::Meilisearch,
+    ErrorCode::DocumentNotFound,
+    MeilisearchError,
 };
+use serde::{de::DeserializeOwned, Serialize};
 use teloxide::types::ChatId;
 
 use crate::types::*;
@@ -49,23 +55,16 @@ impl Db {
             .set_searchable_attributes(Vec::<String>::new())
             .await
             .unwrap();
+        self.0.create_index("senders", Some("id")).await.unwrap();
         self.0
-            .index("chats")
-            .set_filterable_attributes(&["id"])
+            .index("senders")
+            .set_searchable_attributes(Vec::<String>::new())
             .await
             .unwrap();
     }
 
     pub async fn insert_messages(self, msgs: &Vec<Message>) {
-        if msgs.is_empty() {
-            return;
-        }
-        log::debug!("{}", serde_json::to_string_pretty(&msgs).unwrap());
-        self.0
-            .index("messages")
-            .add_documents(msgs, Some("key"))
-            .await
-            .unwrap();
+        self.insert_documents("messages", msgs, Some("key")).await;
     }
 
     pub async fn search_message_with_filter_chats(
@@ -83,7 +82,7 @@ impl Db {
             .with_query(text)
             .with_filter(&format!("chat_id IN {:?}", chats))
             .with_attributes_to_crop(Selectors::Some(&[("text", None)]))
-            .with_crop_length(match Self::check_contain_utf8(text) {
+            .with_crop_length(match check_contain_utf8(text) {
                 true => 15,
                 false => 6,
             })
@@ -105,16 +104,8 @@ impl Db {
     }
 
     pub async fn filter_chat_with_id(self, id: ChatId) -> Option<Chat> {
-        self.0
-            .index("chats")
-            .search()
-            .with_filter(&format!("id = {}", id))
-            .execute::<Chat>()
+        self.get_one_document("chats", id.to_string().as_str())
             .await
-            .unwrap()
-            .hits
-            .get(0)
-            .map(|c| c.result)
     }
 
     pub async fn get_all_chats(self) -> Vec<ChatId> {
@@ -141,13 +132,65 @@ impl Db {
         res
     }
 
-    fn check_contain_utf8(s: &String) -> bool {
-        for b in s.as_bytes() {
-            if *b > 127 {
-                return true;
-            }
+    pub async fn get_sender_name(self, id: ChatId) -> Option<String> {
+        self.get_one_document("senders", id.to_string().as_str())
+            .await
+            .map(|s: Sender| s.name)
+    }
+
+    pub async fn insert_senders(self, senders: &Vec<Sender>) {
+        self.0
+            .index("senders")
+            .add_documents(senders, Some("id"))
+            .await
+            .unwrap()
+            .wait_for_completion(&self.0, None, None)
+            .await
+            .unwrap();
+    }
+
+    async fn get_one_document<T>(self, index: &str, key: &str) -> Option<T>
+    where
+        T: DeserializeOwned + 'static,
+    {
+        match self.0.index(index).get_document(key).await {
+            Ok(d) => Some(d),
+            Err(Meilisearch(MeilisearchError {
+                error_code: DocumentNotFound,
+                ..
+            })) => None,
+            Err(e) => panic!("{e}"),
         }
-        false
+    }
+
+    async fn insert_documents<T>(self, index: &str, docs: &Vec<T>, key: Option<&str>)
+    where
+        T: Serialize,
+    {
+        if docs.is_empty() {
+            return;
+        }
+        log::debug!("{}", serde_json::to_string_pretty(docs).unwrap());
+        self.0
+            .index(index)
+            .add_documents(docs, key)
+            .await
+            .unwrap()
+            .wait_for_completion(
+                &self.0,
+                if docs.len() > 100 {
+                    Some(Duration::from_millis(200))
+                } else {
+                    None
+                },
+                if docs.len() > 100 {
+                    Some(Duration::from_secs(300))
+                } else {
+                    None
+                },
+            )
+            .await
+            .unwrap();
     }
 }
 
@@ -155,4 +198,13 @@ impl Default for Db {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn check_contain_utf8(s: &String) -> bool {
+    for b in s.as_bytes() {
+        if *b > 127 {
+            return true;
+        }
+    }
+    false
 }

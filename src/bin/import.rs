@@ -1,6 +1,7 @@
 use clap::Parser;
 use serde::Deserialize;
 use serde_json::from_str;
+use std::collections::HashMap;
 use std::{fs, path::PathBuf};
 use telegram_cjk_search_bot::{db::Db, types};
 use teloxide::prelude::*;
@@ -10,6 +11,7 @@ use teloxide::types::ChatId;
 struct Content {
     #[serde(rename = "type")]
     chat_type: String,
+    name: String,
     id: ChatId,
     messages: Vec<Message>,
 }
@@ -25,6 +27,7 @@ struct Message {
     #[serde(rename = "type")]
     message_type: String,
     date_unixtime: String,
+    from: Option<String>,
     from_id: Option<String>,
     via_bot: Option<String>,
     text_entities: Vec<Entity>,
@@ -56,10 +59,9 @@ async fn main() {
     );
     log::info!("Paresed {} items.", content.messages.len());
 
-    let (messages_count, handles) = process_messages(content, bot_username);
+    let (messages_count, senders_count, handles) = process_messages(content, bot_username);
     log::info!(
-        "Inserting {} messages. Waiting for completion.",
-        messages_count
+        "Inserting {messages_count} messages and {senders_count} senders. Waiting for completion."
     );
 
     futures::future::join_all(handles).await;
@@ -76,13 +78,20 @@ fn read_content_from_file(file_path: &PathBuf) -> Content {
 fn process_messages(
     content: Content,
     bot_username: String,
-) -> (usize, Vec<tokio::task::JoinHandle<()>>) {
+) -> (usize, usize, Vec<tokio::task::JoinHandle<()>>) {
     let mut messages_count = 0;
     let mut handles = Vec::new();
+    let mut senders = HashMap::<ChatId, String>::new();
     let mut messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
 
     for message in content.messages {
         if let Some(m) = to_db_message(&bot_username, &message, &content.id) {
+            if let Some(f) = message.from {
+                senders
+                    .entry(m.sender.unwrap())
+                    .and_modify(|e| *e = f.clone())
+                    .or_insert(f);
+            }
             messages_batch.push(m);
             messages_count += 1;
 
@@ -97,7 +106,23 @@ fn process_messages(
         handles.push(spawn_insert_messages_task(Db::new(), messages_batch));
     }
 
-    (messages_count, handles)
+    senders
+        .entry(content.id)
+        .and_modify(|e| *e = content.name.clone())
+        .or_insert(content.name);
+    let senders_count = senders.len();
+    handles.push(tokio::spawn(async move {
+        Db::new()
+            .insert_senders(
+                &senders
+                    .into_iter()
+                    .map(|(id, name)| types::Sender { id, name })
+                    .collect::<Vec<_>>(),
+            )
+            .await;
+    }));
+
+    (messages_count, senders_count, handles)
 }
 
 fn to_db_message(

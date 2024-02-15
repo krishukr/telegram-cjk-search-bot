@@ -145,6 +145,7 @@ pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
 }
 
 pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
+    Db::new().insert_senders(&types::Sender::from(&msg)).await;
     if Db::new().filter_chat_with_id(msg.chat.id).await.is_none() {
         log::debug!("{} not a enabled chat", &msg.chat.id);
         return Ok(());
@@ -170,7 +171,8 @@ async fn is_chat_member_present(
 }
 
 #[cached(
-    time = 120,
+    time = 10,
+    time_refresh = true,
     result = true,
     sync_writes = true,
     key = "UserId",
@@ -194,23 +196,70 @@ async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<types::
 }
 
 #[cached(
-    time = 120,
+    time = 10,
+    time_refresh = true,
+    result = true,
+    sync_writes = true,
+    key = "ChatId",
+    convert = r#"{ chat_id }"#
+)]
+async fn get_name_from_tg(bot: Bot, chat_id: ChatId) -> ResponseResult<Option<String>> {
+    bot.get_chat(chat_id).await.map_or_else(
+        |e| {
+            if let RequestError::Api(ApiError::ChatNotFound) = e {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        },
+        |c| {
+            Ok(c.title().map(ToString::to_string).or_else(|| {
+                c.first_name().map(|first_name| {
+                    let last_name = c.last_name().unwrap_or_default();
+                    if last_name.is_empty() {
+                        first_name.to_string()
+                    } else {
+                        format!("{} {}", first_name, last_name)
+                    }
+                })
+            }))
+        },
+    )
+}
+
+#[cached(
+    time = 1,
     result = true,
     sync_writes = true,
     key = "ChatId",
     convert = r#"{ chat_id }"#
 )]
 async fn get_name_from_chat_id(bot: Bot, chat_id: ChatId) -> ResponseResult<String> {
-    match bot.get_chat(chat_id).await {
-        Ok(c) => Ok(c.title().map(|s| s.to_string()).unwrap_or(format!(
-            "{}{}",
-            c.first_name().unwrap_or("Anonymous"),
-            c.last_name()
-                .map(|s| format!(" {}", s))
-                .unwrap_or("".to_string())
-        ))),
-        Err(RequestError::Api(ApiError::ChatNotFound)) => Ok("Anonymous".to_string()),
-        Err(e) => Err(e),
+    if let Some(n) = Db::new().get_sender_name(chat_id).await {
+        tokio::spawn(async move {
+            if let Some(n) = get_name_from_tg(bot, chat_id).await.unwrap_or(None) {
+                Db::new()
+                    .insert_senders(&vec![types::Sender {
+                        id: chat_id,
+                        name: n,
+                    }])
+                    .await;
+            }
+        });
+        Ok(n)
+    } else {
+        match get_name_from_tg(bot, chat_id).await? {
+            Some(n) => {
+                Db::new()
+                    .insert_senders(&vec![types::Sender {
+                        id: chat_id,
+                        name: n.clone(),
+                    }])
+                    .await;
+                Ok(n)
+            }
+            None => Ok("Anonymous".to_string()),
+        }
     }
 }
 

@@ -19,6 +19,35 @@ impl From<teloxide::types::ChatId> for Chat {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct Sender {
+    pub id: ChatId,
+    pub name: String,
+}
+
+impl Sender {
+    pub fn from(msg: &teloxide::types::Message) -> Vec<Self> {
+        vec![
+            {
+                let (id, name) = msg
+                    .sender_chat()
+                    .map(|c| (c.id, c.title().unwrap().to_string()))
+                    .unwrap_or_else(|| {
+                        (
+                            msg.from().unwrap().id.into(),
+                            msg.from().unwrap().full_name(),
+                        )
+                    });
+                Self { id, name }
+            },
+            Self {
+                id: msg.chat.id,
+                name: msg.chat.title().unwrap().to_string(),
+            },
+        ]
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
     pub key: String,
