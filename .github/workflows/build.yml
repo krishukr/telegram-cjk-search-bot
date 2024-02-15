@@ -73,7 +73,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USERNAME }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
-          script: |
-            cd ./telegram-cjk-search-bot
-            sudo docker compose pull
+          script: >
+            cd ./telegram-cjk-search-bot &&
+            sudo docker compose pull &&
             sudo docker compose up -d
