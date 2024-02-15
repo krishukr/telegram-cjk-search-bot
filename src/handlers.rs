@@ -100,10 +100,7 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
 pub async fn message_handler(bot: Bot, msg: Message, me: Me) -> ResponseResult<()> {
     log::debug!("{}", serde_json::to_string_pretty(&msg).unwrap());
 
-    if !msg.chat.is_supergroup()
-        || msg.via_bot.as_ref().map_or(false, |b| b.id == me.id)
-        || msg.from().map_or(false, |u| u.is_bot)
-    {
+    if !msg.chat.is_supergroup() || msg.via_bot.as_ref().map_or(false, |b| b.id == me.id) {
         Ok(())
     } else if let Some(text) = msg.text() {
         match Command::parse(text, me.username()) {
