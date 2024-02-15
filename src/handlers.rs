@@ -204,10 +204,10 @@ async fn get_name_from_chat_id(bot: Bot, chat_id: ChatId) -> ResponseResult<Stri
     match bot.get_chat(chat_id).await {
         Ok(c) => Ok(c.title().map(|s| s.to_string()).unwrap_or(format!(
             "{}{}",
-            c.first_name()
-                .map(|s| format!("{} ", s))
-                .unwrap_or("".to_string()),
-            c.last_name().unwrap_or("Anonymous")
+            c.first_name().unwrap_or("Anonymous"),
+            c.last_name()
+                .map(|s| format!(" {}", s))
+                .unwrap_or("".to_string())
         ))),
         Err(RequestError::Api(ApiError::ChatNotFound)) => Ok("Anonymous".to_string()),
         Err(e) => Err(e),
