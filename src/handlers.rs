@@ -58,7 +58,7 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
                     .await?;
                     GET_USER_CHATS.lock().await.cache_clear();
                 } else {
-                    bot.send_message(msg.chat.id, "You are not privilieged to do this.")
+                    bot.send_message(msg.chat.id, "You are not privileged to do this.")
                         .reply_to_message_id(msg.id)
                         .await?;
                 }
@@ -86,7 +86,7 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
                     .await?;
                     GET_USER_CHATS.lock().await.cache_clear();
                 } else {
-                    bot.send_message(msg.chat.id, "You are not privilieged to do this.")
+                    bot.send_message(msg.chat.id, "You are not privileged to do this.")
                         .reply_to_message_id(msg.id)
                         .await?;
                 }
