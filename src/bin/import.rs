@@ -87,12 +87,14 @@ fn process_messages(
 
     for message in content.messages {
         if let Some(m) = to_db_message(&bot_username, &message, &content.id) {
-            if let Some(f) = message.from {
-                senders
-                    .entry(m.sender.unwrap())
-                    .and_modify(|e| *e = f.clone())
-                    .or_insert(f);
-            }
+            let f = message
+                .from
+                .unwrap_or(format!("Deleted Account {}", m.sender.unwrap()));
+            senders
+                .entry(m.sender.unwrap())
+                .and_modify(|e| *e = f.clone())
+                .or_insert(f);
+
             messages_batch.push(m);
             messages_count += 1;
 
