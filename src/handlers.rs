@@ -210,16 +210,12 @@ async fn get_name_from_tg(bot: Bot, chat_id: ChatId) -> ResponseResult<Option<St
             }
         },
         |c| {
-            Ok(c.title().map(ToString::to_string).or_else(|| {
-                c.first_name().map(|first_name| {
-                    let last_name = c.last_name().unwrap_or_default();
-                    if last_name.is_empty() {
-                        first_name.to_string()
-                    } else {
-                        format!("{} {}", first_name, last_name)
-                    }
-                })
-            }))
+            Ok(c.title()
+                .map(ToString::to_string)
+                .or(c.first_name().map(|first_name| match c.last_name() {
+                    Some(last_name) => format!("{} {}", first_name, last_name),
+                    None => first_name.to_string(),
+                })))
         },
     )
 }
