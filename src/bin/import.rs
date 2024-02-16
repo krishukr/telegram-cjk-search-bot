@@ -2,6 +2,7 @@ use clap::Parser;
 use serde::Deserialize;
 use serde_json::from_str;
 use std::collections::HashMap;
+use std::time::Duration;
 use std::{fs, path::PathBuf};
 use telegram_cjk_search_bot::{db::Db, types};
 use teloxide::prelude::*;
@@ -96,14 +97,14 @@ fn process_messages(
             messages_count += 1;
 
             if messages_batch.len() >= INSERT_BATCH_LIMIT {
-                handles.push(spawn_insert_messages_task(Db::new(), messages_batch));
+                handles.push(spawn_insert_messages_task(messages_batch));
                 messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
             }
         }
     }
 
     if !messages_batch.is_empty() {
-        handles.push(spawn_insert_messages_task(Db::new(), messages_batch));
+        handles.push(spawn_insert_messages_task(messages_batch));
     }
 
     senders
@@ -111,16 +112,12 @@ fn process_messages(
         .and_modify(|e| *e = content.name.clone())
         .or_insert(content.name);
     let senders_count = senders.len();
-    handles.push(tokio::spawn(async move {
-        Db::new()
-            .insert_senders(
-                &senders
-                    .into_iter()
-                    .map(|(id, name)| types::Sender { id, name })
-                    .collect::<Vec<_>>(),
-            )
-            .await;
-    }));
+    handles.push(spawn_insert_senders_task(
+        senders
+            .into_iter()
+            .map(|(id, name)| types::Sender { id, name })
+            .collect::<Vec<_>>(),
+    ));
 
     (messages_count, senders_count, handles)
 }
@@ -173,15 +170,30 @@ fn to_db_message(
     })
 }
 
-fn spawn_insert_messages_task(
-    db: Db,
-    messages: Vec<types::Message>,
-) -> tokio::task::JoinHandle<()> {
+fn spawn_insert_messages_task(messages: Vec<types::Message>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        if let Some(t) = db.insert_messages(&messages).await {
-            t.wait_for_completion(&Db::new().0, None, None)
-                .await
-                .unwrap();
+        if let Some(t) = Db::new().insert_messages(&messages).await {
+            t.wait_for_completion(
+                &Db::new().0,
+                Some(Duration::from_millis(200)),
+                Some(Duration::MAX),
+            )
+            .await
+            .unwrap();
+        };
+    })
+}
+
+fn spawn_insert_senders_task(senders: Vec<types::Sender>) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        if let Some(t) = Db::new().insert_senders(&senders).await {
+            t.wait_for_completion(
+                &Db::new().0,
+                Some(Duration::from_millis(200)),
+                Some(Duration::MAX),
+            )
+            .await
+            .unwrap();
         };
     })
 }
