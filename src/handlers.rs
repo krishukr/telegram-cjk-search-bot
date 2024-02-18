@@ -135,6 +135,7 @@ pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
         .try_collect::<Vec<_>>()
         .await?,
     )
+    .cache_time(0)
     .send()
     .await?;
 
