@@ -2,7 +2,7 @@ use telegram_cjk_search_bot::*;
 
 use db::*;
 use handlers::*;
-use teloxide::prelude::*;
+use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[tokio::main]
 async fn main() {
@@ -10,6 +10,11 @@ async fn main() {
 
     let bot = Bot::from_env();
     Db::new().init().await;
+
+    bot.set_my_commands(Command::bot_commands())
+        .await
+        .log_on_error()
+        .await;
 
     let handler = dptree::entry()
         .branch(Update::filter_message().endpoint(message_handler))
