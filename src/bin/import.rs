@@ -179,6 +179,7 @@ async fn to_db_message(
                 false => ChatId(MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap()),
             }),
             id: message.id,
+            via_bot: message.via_bot.clone(),
             chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
             date: chrono::DateTime::from_utc(
                 chrono::NaiveDateTime::from_timestamp_opt(
@@ -323,6 +324,74 @@ mod import_test {
                     "is_forum": false
                 },
                 "via_bot": null,
+                "from": {
+                    "id": 114514,
+                    "is_bot": false,
+                    "first_name": "Kris",
+                    "last_name": "Hu",
+                    "username": "Krisssssss",
+                    "language_code": "zh-hans"
+                },
+                "text": "还真是",
+                "entities": [],
+                "is_topic_message": false,
+                "is_automatic_forward": false,
+                "has_protected_content": false
+        }"#,
+            )
+            .unwrap(),
+        );
+
+        assert_eq!(
+            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).await.unwrap())
+                .unwrap(),
+            serde_json::to_string(&genuine_msg).unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn via_bot_message_test() {
+        let msg = serde_json::from_str::<super::Message>(
+            r#"
+            {
+                "id": 346,
+                "type": "message",
+                "date": "2024-01-10T17:20:31",
+                "date_unixtime": "1704878431",
+                "from": "Kris Hu",
+                "from_id": "user114514",
+                "via_bot": "@TestBot",
+                "text": "还真是",
+                "text_entities": [
+                 {
+                  "type": "plain",
+                  "text": "还真是"
+                 }
+                ]
+               }
+        "#,
+        )
+        .unwrap();
+
+        let genuine_msg = telegram_cjk_search_bot::types::Message::from(
+            &serde_json::from_str::<teloxide::types::Message>(
+                r#"
+            {
+                "message_id": 346,
+                "message_thread_id": null,
+                "date": 1704878431,
+                "chat": {
+                    "id": -1001145141919,
+                    "title": "Genshin Impact",
+                    "type": "supergroup",
+                    "is_forum": false
+                },
+                "via_bot": {
+                    "id": 1145141919,
+                    "is_bot": true,
+                    "first_name": "Test Bot",
+                    "username": "TestBot"
+                },
                 "from": {
                     "id": 114514,
                     "is_bot": false,

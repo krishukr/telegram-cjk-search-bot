@@ -16,6 +16,10 @@ async fn main() {
         .log_on_error()
         .await;
 
+    crate::BOT_USERNAME
+        .set(format!("@{}", bot.get_me().await.unwrap().username()))
+        .unwrap();
+
     let handler = dptree::entry()
         .branch(Update::filter_message().endpoint(message_handler))
         .branch(Update::filter_edited_message().endpoint(message_handler))

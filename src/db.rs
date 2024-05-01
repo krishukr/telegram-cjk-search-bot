@@ -21,6 +21,17 @@ pub trait Insertable: Serialize {
     fn init(db: &Db) -> impl std::future::Future<Output = ()> + Send;
 }
 
+pub enum ExcludeOption<T> {
+    Some(Vec<T>),
+    All,
+    None,
+}
+
+pub struct Filter {
+    pub chats: Vec<Chat>,
+    pub exclude_bots: ExcludeOption<String>,
+}
+
 impl Db {
     pub fn new() -> Self {
         Db(Client::new(
@@ -35,20 +46,17 @@ impl Db {
         <Sender as Insertable>::init(&self).await;
     }
 
-    pub async fn search_message_with_filter_chats(
+    pub async fn search_message_with_filter(
         self,
         text: &String,
-        chats: &Vec<Chat>,
+        filter: &Filter,
     ) -> SearchResults<Message> {
-        log::debug!(
-            "search message with filter {}",
-            format!("chat_id IN {:?}", chats)
-        );
+        log::debug!("search message with filter {}", filter.render());
         self.0
             .index(Message::INDEX)
             .search()
             .with_query(text)
-            .with_filter(&format!("chat_id IN {:?}", chats))
+            .with_filter(&filter.render())
             .with_attributes_to_crop(Selectors::Some(&[("text", None)]))
             .with_crop_length(match check_contain_utf8(text) {
                 true => 15,
@@ -160,7 +168,7 @@ impl Insertable for Message {
             .unwrap();
         client
             .index(Self::INDEX)
-            .set_filterable_attributes(&["chat_id"])
+            .set_filterable_attributes(&["chat_id", "via_bot"])
             .await
             .unwrap();
         client
@@ -206,6 +214,20 @@ impl Insertable for Sender {
             .set_searchable_attributes(Vec::<String>::new())
             .await
             .unwrap();
+    }
+}
+
+impl Filter {
+    fn render(&self) -> String {
+        format!(
+            "chat_id IN {:?}{}",
+            self.chats,
+            match &self.exclude_bots {
+                ExcludeOption::Some(x) => format!(" AND via_bot NOT IN {:?}", x),
+                ExcludeOption::All => " AND via_bot NOT EXISTS".to_string(),
+                ExcludeOption::None => "".to_string(),
+            }
+        )
     }
 }
 

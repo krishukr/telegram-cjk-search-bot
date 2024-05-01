@@ -55,6 +55,8 @@ pub struct Message {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     pub sender: Option<ChatId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub via_bot: Option<String>,
     pub id: i32,
     pub chat_id: ChatId,
     pub date: DateTime<Utc>,
@@ -71,6 +73,10 @@ impl From<&teloxide::types::Message> for Message {
                     .map(|c| c.id)
                     .unwrap_or_else(|| msg.from().unwrap().id.into()),
             ),
+            via_bot: msg
+                .via_bot
+                .as_ref()
+                .map(|u| format!("@{}", u.username.clone().unwrap())),
             id: msg.id.0,
             chat_id: msg.chat.id,
             date: msg.date,
@@ -342,5 +348,80 @@ mod types_tests {
             .unwrap(),
         );
         assert_eq!(msg.link(), "https://t.me/c/1952114514/3")
+    }
+
+    #[test]
+    fn message_no_via_bot_test() {
+        let msg = Message::from(
+            &serde_json::from_str::<teloxide::types::Message>(
+                r#"{
+            "message_id": 2,
+            "message_thread_id": null,
+            "date": 1689731458,
+            "chat": {
+                "id": -1001,
+                "title": "test",
+                "type": "supergroup",
+                "is_forum": false
+            },
+            "via_bot": null,
+            "from": {
+                "id": 1,
+                "is_bot": false,
+                "first_name": "Foo",
+                "last_name": "Bar",
+                "username": "Foo_Bar",
+                "language_code": "zh-hans"
+            },
+            "text": "2",
+            "entities": [],
+            "is_topic_message": false,
+            "is_automatic_forward": false,
+            "has_protected_content": false
+            }"#,
+            )
+            .unwrap(),
+        );
+        assert!(msg.via_bot.is_none());
+    }
+
+    #[test]
+    fn message_via_bot_test() {
+        let msg = Message::from(
+            &serde_json::from_str::<teloxide::types::Message>(
+                r#"{
+            "message_id": 2,
+            "message_thread_id": null,
+            "date": 1689731458,
+            "chat": {
+                "id": -1001,
+                "title": "test",
+                "type": "supergroup",
+                "is_forum": false
+            },
+            "via_bot": {
+                "id": 1145141919,
+                "is_bot": true,
+                "first_name": "Test Bot",
+                "username": "TestBot"
+            },
+            "from": {
+                "id": 1,
+                "is_bot": false,
+                "first_name": "Foo",
+                "last_name": "Bar",
+                "username": "Foo_Bar",
+                "language_code": "zh-hans"
+            },
+            "text": "2",
+            "entities": [],
+            "is_topic_message": false,
+            "is_automatic_forward": false,
+            "has_protected_content": false
+            }"#,
+            )
+            .unwrap(),
+        );
+        assert_eq!(msg.via_bot.unwrap(), "@TestBot");
     }
 }

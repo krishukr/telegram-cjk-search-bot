@@ -1,5 +1,6 @@
 use crate::{db::*, types};
 use cached::{proc_macro::cached, Cached};
+use clap::{CommandFactory, Parser};
 use futures::{StreamExt, TryStreamExt};
 use teloxide::{
     prelude::*,
@@ -33,8 +34,15 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
     match cmd {
         Command::Help => {
             log::debug!("got command help");
-            bot.send_message(msg.chat.id, Command::descriptions().to_string())
-                .await?;
+            bot.send_message(
+                msg.chat.id,
+                format!(
+                    "{}\n\nInline {}",
+                    Command::descriptions().to_string(),
+                    Cli::command().render_help()
+                ),
+            )
+            .await?;
         }
         Command::Start => {
             log::debug!("got command start");
@@ -114,32 +122,84 @@ pub async fn message_handler(bot: Bot, msg: Message, me: Me) -> ResponseResult<(
     }
 }
 
+#[derive(Parser)]
+#[command(name = crate::BOT_USERNAME.get().unwrap())]
+#[command(disable_version_flag = true, disable_help_flag = true)]
+#[command(author, version, long_about = None)]
+// #[command(about = "Search messages.")]
+pub struct Cli {
+    #[arg(default_value = "", hide_default_value = true)]
+    query: String,
+
+    #[arg(short = 'a', long)]
+    exclude_all_bots: bool,
+
+    #[arg(short, long)]
+    exclude_bots: Option<Vec<String>>,
+}
+
 pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
     log::debug!("{}", serde_json::to_string_pretty(&q).unwrap());
+    let cli =
+        Cli::try_parse_from([vec![""], (q.query.split_whitespace().collect::<Vec<_>>())].concat());
+    match cli {
+        Ok(cli) => {
+            let search_filter = Filter {
+                chats: get_user_chats(bot.clone(), q.from.id).await?,
+                exclude_bots: if cli.exclude_all_bots {
+                    ExcludeOption::All
+                } else {
+                    cli.exclude_bots
+                        .map(|x| ExcludeOption::Some(x))
+                        .unwrap_or(ExcludeOption::None)
+                },
+            };
 
-    let search_results = Db::new()
-        .search_message_with_filter_chats(&q.query, &get_user_chats(bot.clone(), q.from.id).await?)
-        .await;
-    bot.answer_inline_query(
-        &q.id,
-        futures::stream::iter(search_results.hits.into_iter().map(|m| {
-            (
-                m.result,
-                m.formatted_result.unwrap()["text"]
-                    .as_str()
-                    .unwrap()
-                    .to_string(),
+            let search_results = Db::new()
+                .search_message_with_filter(&cli.query, &search_filter)
+                .await;
+            bot.answer_inline_query(
+                &q.id,
+                futures::stream::iter(search_results.hits.into_iter().map(|m| {
+                    (
+                        m.result,
+                        m.formatted_result.unwrap()["text"]
+                            .as_str()
+                            .unwrap()
+                            .to_string(),
+                    )
+                }))
+                .then(|(m, f)| construct_query_result(bot.clone(), m, f))
+                .try_collect::<Vec<_>>()
+                .await?,
             )
-        }))
-        .then(|(m, f)| construct_query_result(bot.clone(), m, f))
-        .try_collect::<Vec<_>>()
-        .await?,
-    )
-    .cache_time(0)
-    .send()
-    .await?;
+            .cache_time(0)
+            .send()
+            .await?;
 
-    Ok(())
+            Ok(())
+        }
+        Err(e) => {
+            bot.answer_inline_query(
+                &q.id,
+                [InlineQueryResult::Article(
+                    InlineQueryResultArticle::new(
+                        "1",
+                        "Parse Error!",
+                        InputMessageContent::Text(InputMessageContentText::new(format!(
+                            "{}",
+                            e.render()
+                        ))),
+                    )
+                    .description(format!("{}", e.render())),
+                )],
+            )
+            .cache_time(0)
+            .send()
+            .await?;
+            Ok(())
+        }
+    }
 }
 
 pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
