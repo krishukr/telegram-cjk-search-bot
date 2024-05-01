@@ -2,7 +2,10 @@ use clap::Parser;
 use serde::Deserialize;
 use serde_json::from_str;
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc, time::Duration};
-use telegram_cjk_search_bot::{db::Db, types};
+use telegram_cjk_search_bot::{
+    db::{Db, Insertable},
+    types,
+};
 use teloxide::prelude::*;
 use teloxide::types::ChatId;
 use tokio::{sync::Mutex, task::JoinHandle};
@@ -108,7 +111,7 @@ async fn process_messages(
                         }
                     }
                     *messages_count.lock().await += messages_batch.len();
-                    spawn_insert_messages_task(messages_batch)
+                    spawn_insert_task(messages_batch)
                 })
             }),
     )
@@ -123,7 +126,7 @@ async fn process_messages(
         .entry(content.id)
         .and_modify(|e| *e = content.name.clone())
         .or_insert(content.name);
-    handles.push(spawn_insert_senders_task(
+    handles.push(spawn_insert_task(
         senders
             .lock()
             .await
@@ -189,23 +192,12 @@ async fn to_db_message(
     })
 }
 
-fn spawn_insert_messages_task(messages: Vec<types::Message>) -> tokio::task::JoinHandle<()> {
+fn spawn_insert_task<T>(items: Vec<T>) -> JoinHandle<()>
+where
+    T: Insertable + Sync + Send + 'static,
+{
     tokio::spawn(async move {
-        if let Some(t) = Db::new().insert(&messages).await {
-            t.wait_for_completion(
-                &Db::new().0,
-                Some(Duration::from_millis(200)),
-                Some(Duration::MAX),
-            )
-            .await
-            .unwrap();
-        };
-    })
-}
-
-fn spawn_insert_senders_task(senders: Vec<types::Sender>) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        if let Some(t) = Db::new().insert(&senders).await {
+        if let Some(t) = Db::new().insert(&items).await {
             t.wait_for_completion(
                 &Db::new().0,
                 Some(Duration::from_millis(200)),
