@@ -143,15 +143,13 @@ pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
 }
 
 pub async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
-    Db::new().insert_senders(&types::Sender::from(&msg)).await;
+    Db::new().insert(&types::Sender::from(&msg)).await;
     if Db::new().filter_chat_with_id(msg.chat.id).await.is_none() {
         log::debug!("{} not a enabled chat", &msg.chat.id);
         return Ok(());
     }
 
-    Db::new()
-        .insert_messages(&vec![types::Message::from(&msg)])
-        .await;
+    Db::new().insert(&vec![types::Message::from(&msg)]).await;
 
     Ok(())
 }
@@ -233,7 +231,7 @@ async fn get_name_from_chat_id(bot: Bot, chat_id: ChatId) -> ResponseResult<Stri
         tokio::spawn(async move {
             if let Some(n) = get_name_from_tg(bot, chat_id).await.unwrap_or(None) {
                 Db::new()
-                    .insert_senders(&vec![types::Sender {
+                    .insert(&vec![types::Sender {
                         id: chat_id,
                         name: n,
                     }])
@@ -245,7 +243,7 @@ async fn get_name_from_chat_id(bot: Bot, chat_id: ChatId) -> ResponseResult<Stri
         match get_name_from_tg(bot, chat_id).await? {
             Some(n) => {
                 Db::new()
-                    .insert_senders(&vec![types::Sender {
+                    .insert(&vec![types::Sender {
                         id: chat_id,
                         name: n.clone(),
                     }])

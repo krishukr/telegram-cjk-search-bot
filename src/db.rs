@@ -14,6 +14,13 @@ const GET_LIMIT: usize = 100;
 
 pub struct Db(pub Client);
 
+pub trait Insertable: Serialize {
+    const INDEX: &'static str;
+    const KEY: Option<&'static str>;
+
+    fn init(db: &Db) -> impl std::future::Future<Output = ()> + Send;
+}
+
 impl Db {
     pub fn new() -> Self {
         Db(Client::new(
@@ -23,46 +30,9 @@ impl Db {
     }
 
     pub async fn init(self) {
-        self.0.create_index("messages", Some("key")).await.unwrap();
-        self.0
-            .index("messages")
-            .set_searchable_attributes(&["text"])
-            .await
-            .unwrap();
-        self.0
-            .index("messages")
-            .set_filterable_attributes(&["chat_id"])
-            .await
-            .unwrap();
-        self.0
-            .index("messages")
-            .set_ranking_rules([
-                "words",
-                "typo",
-                "proximity",
-                "attribute",
-                "sort",
-                "exactness",
-                "date:desc",
-            ])
-            .await
-            .unwrap();
-        self.0.create_index("chats", Some("id")).await.unwrap();
-        self.0
-            .index("chats")
-            .set_searchable_attributes(Vec::<String>::new())
-            .await
-            .unwrap();
-        self.0.create_index("senders", Some("id")).await.unwrap();
-        self.0
-            .index("senders")
-            .set_searchable_attributes(Vec::<String>::new())
-            .await
-            .unwrap();
-    }
-
-    pub async fn insert_messages(self, msgs: &Vec<Message>) -> Option<TaskInfo> {
-        self.insert_documents("messages", msgs, Some("key")).await
+        <Message as Insertable>::init(&self).await;
+        <Chat as Insertable>::init(&self).await;
+        <Sender as Insertable>::init(&self).await;
     }
 
     pub async fn search_message_with_filter_chats(
@@ -75,7 +45,7 @@ impl Db {
             format!("chat_id IN {:?}", chats)
         );
         self.0
-            .index("messages")
+            .index(Message::INDEX)
             .search()
             .with_query(text)
             .with_filter(&format!("chat_id IN {:?}", chats))
@@ -90,25 +60,21 @@ impl Db {
     }
 
     pub async fn insert_chat_with_id(self, id: ChatId) {
-        self.0
-            .index("chats")
-            .add_documents(&[Chat::from(id)], Some("id"))
-            .await
-            .unwrap();
+        self.insert(&vec![Chat::from(id)]).await;
     }
 
     pub async fn delete_chat_with_id(self, id: ChatId) {
-        self.0.index("chats").delete_document(id).await.unwrap();
+        self.0.index(Chat::INDEX).delete_document(id).await.unwrap();
     }
 
     pub async fn filter_chat_with_id(self, id: ChatId) -> Option<Chat> {
-        self.get_one_document("chats", id.to_string().as_str())
+        self.get_one_document(Chat::INDEX, id.to_string().as_str())
             .await
     }
 
     pub async fn get_all_chats(self) -> Vec<ChatId> {
         let mut res: Vec<ChatId> = Vec::new();
-        let index = self.0.index("chats");
+        let index = self.0.index(Chat::INDEX);
         let mut query = index.search().with_limit(GET_LIMIT).build();
 
         let mut offset: usize = 0;
@@ -131,13 +97,9 @@ impl Db {
     }
 
     pub async fn get_sender_name(self, id: ChatId) -> Option<String> {
-        self.get_one_document("senders", id.to_string().as_str())
+        self.get_one_document(Sender::INDEX, id.to_string().as_str())
             .await
             .map(|s: Sender| s.name)
-    }
-
-    pub async fn insert_senders(self, senders: &Vec<Sender>) -> Option<TaskInfo> {
-        self.insert_documents("senders", senders, Some("id")).await
     }
 
     async fn get_one_document<T>(self, index: &str, key: &str) -> Option<T>
@@ -152,6 +114,13 @@ impl Db {
             })) => None,
             Err(e) => panic!("{e}"),
         }
+    }
+
+    pub async fn insert<T>(self, docs: &Vec<T>) -> Option<TaskInfo>
+    where
+        T: Insertable,
+    {
+        self.insert_documents(T::INDEX, docs, T::KEY).await
     }
 
     async fn insert_documents<T>(
@@ -174,6 +143,69 @@ impl Db {
 impl Default for Db {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Insertable for Message {
+    const INDEX: &'static str = "messages";
+    const KEY: Option<&'static str> = Some("key");
+
+    async fn init(db: &Db) {
+        let client = &db.0;
+        client.create_index(Self::INDEX, Self::KEY).await.unwrap();
+        client
+            .index(Self::INDEX)
+            .set_searchable_attributes(&["text"])
+            .await
+            .unwrap();
+        client
+            .index(Self::INDEX)
+            .set_filterable_attributes(&["chat_id"])
+            .await
+            .unwrap();
+        client
+            .index(Self::INDEX)
+            .set_ranking_rules([
+                "words",
+                "typo",
+                "proximity",
+                "attribute",
+                "sort",
+                "exactness",
+                "date:desc",
+            ])
+            .await
+            .unwrap();
+    }
+}
+
+impl Insertable for Chat {
+    const INDEX: &'static str = "chats";
+    const KEY: Option<&'static str> = Some("id");
+
+    async fn init(db: &Db) {
+        let client = &db.0;
+        client.create_index(Self::INDEX, Self::KEY).await.unwrap();
+        client
+            .index(Self::INDEX)
+            .set_searchable_attributes(Vec::<String>::new())
+            .await
+            .unwrap();
+    }
+}
+
+impl Insertable for Sender {
+    const INDEX: &'static str = "senders";
+    const KEY: Option<&'static str> = Some("id");
+
+    async fn init(db: &Db) {
+        let client = &db.0;
+        client.create_index(Self::INDEX, Self::KEY).await.unwrap();
+        client
+            .index(Self::INDEX)
+            .set_searchable_attributes(Vec::<String>::new())
+            .await
+            .unwrap();
     }
 }
 

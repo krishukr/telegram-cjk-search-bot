@@ -191,7 +191,7 @@ async fn to_db_message(
 
 fn spawn_insert_messages_task(messages: Vec<types::Message>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        if let Some(t) = Db::new().insert_messages(&messages).await {
+        if let Some(t) = Db::new().insert(&messages).await {
             t.wait_for_completion(
                 &Db::new().0,
                 Some(Duration::from_millis(200)),
@@ -205,7 +205,7 @@ fn spawn_insert_messages_task(messages: Vec<types::Message>) -> tokio::task::Joi
 
 fn spawn_insert_senders_task(senders: Vec<types::Sender>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        if let Some(t) = Db::new().insert_senders(&senders).await {
+        if let Some(t) = Db::new().insert(&senders).await {
             t.wait_for_completion(
                 &Db::new().0,
                 Some(Duration::from_millis(200)),
