@@ -1,12 +1,11 @@
 use clap::Parser;
 use serde::Deserialize;
 use serde_json::from_str;
-use std::collections::HashMap;
-use std::time::Duration;
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf, sync::Arc, time::Duration};
 use telegram_cjk_search_bot::{db::Db, types};
 use teloxide::prelude::*;
 use teloxide::types::ChatId;
+use tokio::{sync::Mutex, task::JoinHandle};
 
 #[derive(Deserialize)]
 struct Content {
@@ -17,12 +16,12 @@ struct Content {
     messages: Vec<Message>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct Entity {
     text: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 struct Message {
     id: i32,
     #[serde(rename = "type")]
@@ -60,7 +59,7 @@ async fn main() {
     );
     log::info!("Paresed {} items.", content.messages.len());
 
-    let (messages_count, senders_count, handles) = process_messages(content, bot_username);
+    let (messages_count, senders_count, handles) = process_messages(content, bot_username).await;
     log::info!(
         "Inserting {messages_count} messages and {senders_count} senders. Waiting for completion."
     );
@@ -76,55 +75,73 @@ fn read_content_from_file(file_path: &PathBuf) -> Content {
     from_str::<Content>(&file_content).expect("Failed to parse content from file")
 }
 
-fn process_messages(
+async fn process_messages(
     content: Content,
     bot_username: String,
-) -> (usize, usize, Vec<tokio::task::JoinHandle<()>>) {
-    let mut messages_count = 0;
-    let mut handles = Vec::new();
-    let mut senders = HashMap::<ChatId, String>::new();
-    let mut messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
+) -> (usize, usize, Vec<JoinHandle<()>>) {
+    let messages_count = Arc::new(Mutex::new(0));
+    let senders = Arc::new(Mutex::new(HashMap::<ChatId, String>::new()));
 
-    for message in content.messages {
-        if let Some(m) = to_db_message(&bot_username, &message, &content.id) {
-            let f = message
-                .from
-                .unwrap_or(format!("Deleted Account {}", m.sender.unwrap()));
-            senders
-                .entry(m.sender.unwrap())
-                .and_modify(|e| *e = f.clone())
-                .or_insert(f);
-
-            messages_batch.push(m);
-            messages_count += 1;
-
-            if messages_batch.len() >= INSERT_BATCH_LIMIT {
-                handles.push(spawn_insert_messages_task(messages_batch));
-                messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
-            }
-        }
-    }
-
-    if !messages_batch.is_empty() {
-        handles.push(spawn_insert_messages_task(messages_batch));
-    }
+    let mut handles = futures::future::join_all(
+        content
+            .messages
+            .chunks(INSERT_BATCH_LIMIT)
+            .map(|c| c.to_vec())
+            .map(|c| {
+                let messages_count = messages_count.clone();
+                let senders = senders.clone();
+                let bot_username = bot_username.clone();
+                tokio::spawn(async move {
+                    let mut messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
+                    for message in c {
+                        if let Some(m) = to_db_message(&bot_username, &message, &content.id).await {
+                            let f = message
+                                .from
+                                .unwrap_or(format!("Deleted Account {}", m.sender.unwrap()));
+                            senders
+                                .lock()
+                                .await
+                                .entry(m.sender.unwrap())
+                                .and_modify(|e| *e = f.clone())
+                                .or_insert(f);
+                            messages_batch.push(m)
+                        }
+                    }
+                    *messages_count.lock().await += messages_batch.len();
+                    spawn_insert_messages_task(messages_batch)
+                })
+            }),
+    )
+    .await
+    .into_iter()
+    .map(|x| x.unwrap())
+    .collect::<Vec<_>>();
 
     senders
+        .lock()
+        .await
         .entry(content.id)
         .and_modify(|e| *e = content.name.clone())
         .or_insert(content.name);
-    let senders_count = senders.len();
     handles.push(spawn_insert_senders_task(
         senders
+            .lock()
+            .await
+            .clone()
             .into_iter()
             .map(|(id, name)| types::Sender { id, name })
             .collect::<Vec<_>>(),
     ));
 
-    (messages_count, senders_count, handles)
+    let res = (
+        *messages_count.lock().await,
+        senders.lock().await.len(),
+        handles,
+    );
+    res
 }
 
-fn to_db_message(
+async fn to_db_message(
     bot_username: &str,
     message: &Message,
     chat_id: &ChatId,
@@ -204,8 +221,8 @@ fn spawn_insert_senders_task(senders: Vec<types::Sender>) -> tokio::task::JoinHa
 mod import_test {
     use super::*;
 
-    #[test]
-    fn private_chat_message_test() {
+    #[tokio::test]
+    async fn private_chat_message_test() {
         let msg = serde_json::from_str::<super::Message>(
             r#"{
             "id": -999972078,
@@ -226,11 +243,11 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).is_none());
+        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
     }
 
-    #[test]
-    fn serivce_message_test() {
+    #[tokio::test]
+    async fn serivce_message_test() {
         let msg = serde_json::from_str::<super::Message>(
             r#"{
                 "id": 15,
@@ -250,11 +267,11 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).is_none());
+        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
     }
 
-    #[test]
-    fn empty_message_test() {
+    #[tokio::test]
+    async fn empty_message_test() {
         let msg = serde_json::from_str::<super::Message>(
             r#"{
                 "id": 4,
@@ -274,11 +291,11 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).is_none());
+        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
     }
 
-    #[test]
-    fn normal_message_test() {
+    #[tokio::test]
+    async fn normal_message_test() {
         let msg = serde_json::from_str::<super::Message>(
             r#"
             {
@@ -333,7 +350,8 @@ mod import_test {
         );
 
         assert_eq!(
-            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).unwrap()).unwrap(),
+            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).await.unwrap())
+                .unwrap(),
             serde_json::to_string(&genuine_msg).unwrap()
         );
     }

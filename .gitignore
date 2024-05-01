@@ -4,6 +4,7 @@
 .direnv
 data.ms
 dumps
+history/result.json
 /target
 
 /*.sh
