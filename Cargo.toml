@@ -12,7 +12,7 @@ serde_json = "1.0"
 teloxide = { version = "0.12", features = ["macros"] }
 log = "0.4"
 pretty_env_logger = "0.5"
-tokio = { version = "1.36", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.37.0", features = ["rt-multi-thread", "macros"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5.2", features = ["derive"] }
 html-escape = "0.2"
