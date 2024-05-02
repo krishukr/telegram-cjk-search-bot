@@ -18,11 +18,21 @@ pub struct Cli {
     #[arg(default_value = "", hide_default_value = true)]
     query: String,
 
+    /// Include messages via all bots in search results
     #[arg(short = 'a', long)]
-    exclude_all_bots: bool,
+    include_all_bots: bool,
 
+    /// Include messages via specific bots in search results
     #[arg(short, long)]
-    exclude_bots: Option<Vec<String>>,
+    include_bots: Option<Vec<String>>,
+
+    /// Only search for messages via bots
+    #[arg(short = 'l', long)]
+    only_all_bots: bool,
+
+    /// Only search for messages via specific bots
+    #[arg(short, long)]
+    only_bots: Option<Vec<String>>,
 }
 
 pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
@@ -37,12 +47,19 @@ pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
 async fn parsed_handler(bot: Bot, q: InlineQuery, cli: Cli) -> ResponseResult<()> {
     let search_filter = Filter {
         chats: get_user_chats(bot.clone(), q.from.id).await?,
-        exclude_bots: if cli.exclude_all_bots {
-            ExcludeOption::All
+        include_bots: if cli.include_all_bots || cli.only_all_bots || cli.only_bots.is_some() {
+            FilterOption::All
         } else {
-            cli.exclude_bots
-                .map(|x| ExcludeOption::Some(x))
-                .unwrap_or(ExcludeOption::None)
+            cli.include_bots
+                .map(|x| FilterOption::Some(x))
+                .unwrap_or(FilterOption::None)
+        },
+        only_bots: if cli.only_all_bots {
+            FilterOption::All
+        } else {
+            cli.only_bots
+                .map(|x| FilterOption::Some(x))
+                .unwrap_or(FilterOption::None)
         },
     };
 

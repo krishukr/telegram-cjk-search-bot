@@ -21,7 +21,7 @@ pub trait Insertable: Serialize {
     fn init(db: &Db) -> impl std::future::Future<Output = ()> + Send;
 }
 
-pub enum ExcludeOption<T> {
+pub enum FilterOption<T> {
     Some(Vec<T>),
     All,
     None,
@@ -29,7 +29,8 @@ pub enum ExcludeOption<T> {
 
 pub struct Filter {
     pub chats: Vec<Chat>,
-    pub exclude_bots: ExcludeOption<String>,
+    pub include_bots: FilterOption<String>,
+    pub only_bots: FilterOption<String>,
 }
 
 impl Db {
@@ -220,12 +221,17 @@ impl Insertable for Sender {
 impl Filter {
     fn render(&self) -> String {
         format!(
-            "chat_id IN {:?}{}",
+            "chat_id IN {:?}{}{}",
             self.chats,
-            match &self.exclude_bots {
-                ExcludeOption::Some(x) => format!(" AND via_bot NOT IN {:?}", x),
-                ExcludeOption::All => " AND via_bot NOT EXISTS".to_string(),
-                ExcludeOption::None => "".to_string(),
+            match &self.include_bots {
+                FilterOption::Some(x) => format!(" AND (via_bot NOT EXISTS OR via_bot IN {:?})", x),
+                FilterOption::All => "".to_string(),
+                FilterOption::None => " AND via_bot NOT EXISTS".to_string(),
+            },
+            match &self.only_bots {
+                FilterOption::Some(x) => format!(" AND via_bot IN {:?}", x),
+                FilterOption::All => format!(" AND via_bot EXISTS"),
+                FilterOption::None => "".to_string(),
             }
         )
     }
