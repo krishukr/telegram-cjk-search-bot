@@ -16,7 +16,7 @@ use teloxide::{
 #[command(author, version, long_about = None)]
 pub struct Cli {
     #[arg(default_value = "", hide_default_value = true)]
-    query: String,
+    query: Vec<String>,
 
     /// Include messages via all bots in search results
     #[arg(short = 'a', long)]
@@ -64,7 +64,7 @@ async fn parsed_handler(bot: Bot, q: InlineQuery, cli: Cli) -> ResponseResult<()
     };
 
     let search_results = Db::new()
-        .search_message_with_filter(&cli.query, &search_filter)
+        .search_message_with_filter(&cli.query.join(" "), &search_filter)
         .await;
     bot.answer_inline_query(
         &q.id,
