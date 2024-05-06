@@ -14,7 +14,7 @@ services:
     depends_on:
       - meilisearch
   meilisearch:
-    image: getmeili/meilisearch:v1.2
+    image: getmeili/meilisearch:v1.8
     restart: unless-stopped
     volumes:
       - ./meili_data:/meili_data
