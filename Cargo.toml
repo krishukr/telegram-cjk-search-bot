@@ -7,16 +7,16 @@ edition = "2021"
 
 [dependencies]
 meilisearch-sdk = "0.24.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-teloxide = { version = "0.12", features = ["macros"] }
-log = "0.4"
+serde = { version = "1.0.200", features = ["derive"] }
+serde_json = "1.0.116"
+teloxide = { version = "0.12.2", features = ["macros"] }
+log = "0.4.21"
 pretty_env_logger = "0.5"
 tokio = { version = "1.36", features = ["rt-multi-thread", "macros"] }
-chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "4.5.2", features = ["derive", "string"] }
-html-escape = "0.2"
-futures = "0.3"
+chrono = { version = "0.4.38", features = ["serde"] }
+clap = { version = "4.5.4", features = ["derive", "string"] }
+html-escape = "0.2.13"
+futures = "0.3.30"
 cached = { version = "0.49.2", features = ["async"] }
 
 [features]
