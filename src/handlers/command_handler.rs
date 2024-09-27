@@ -1,7 +1,7 @@
 use super::inline_handler;
 use crate::db::*;
 use clap::CommandFactory;
-use teloxide::{prelude::*, utils::command::BotCommands};
+use teloxide::{prelude::*, types::ReplyParameters, utils::command::BotCommands};
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -56,7 +56,10 @@ async fn start_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
                 msg.chat.id
             ),
         )
-        .reply_to_message_id(msg.id)
+        .reply_parameters(ReplyParameters {
+            message_id: msg.id,
+            ..Default::default()
+        })
         .await
         .and(Ok(()))
     } else {
@@ -77,7 +80,10 @@ async fn stop_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
                 msg.chat.id
             ),
         )
-        .reply_to_message_id(msg.id)
+        .reply_parameters(ReplyParameters {
+            message_id: msg.id,
+            ..Default::default()
+        })
         .await
         .and(Ok(()))
     } else {
@@ -86,7 +92,7 @@ async fn stop_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
 }
 
 async fn is_privileged(bot: &Bot, msg: &Message) -> ResponseResult<bool> {
-    if let Some(u) = msg.from() {
+    if let Some(u) = &msg.from {
         if bot
             .get_chat_member(msg.chat.id, u.id)
             .await?
@@ -96,7 +102,10 @@ async fn is_privileged(bot: &Bot, msg: &Message) -> ResponseResult<bool> {
             return Ok(true);
         }
         bot.send_message(msg.chat.id, "You are not privileged to do this.")
-            .reply_to_message_id(msg.id)
+            .reply_parameters(ReplyParameters {
+                message_id: msg.id,
+                ..Default::default()
+            })
             .await?;
     }
     Ok(false)

@@ -30,12 +30,13 @@ impl Sender {
         vec![
             {
                 let (id, name) = msg
-                    .sender_chat()
+                    .sender_chat
+                    .as_ref()
                     .map(|c| (c.id, c.title().unwrap().to_string()))
                     .unwrap_or_else(|| {
                         (
-                            msg.from().unwrap().id.into(),
-                            msg.from().unwrap().full_name(),
+                            msg.from.as_ref().unwrap().id.into(),
+                            msg.from.as_ref().unwrap().full_name(),
                         )
                     });
                 Self { id, name }
@@ -69,9 +70,10 @@ impl From<&teloxide::types::Message> for Message {
             text: msg.text().or(msg.caption()).unwrap().to_string(),
             from: None,
             sender: Some(
-                msg.sender_chat()
+                msg.sender_chat
+                    .as_ref()
                     .map(|c| c.id)
-                    .unwrap_or_else(|| msg.from().unwrap().id.into()),
+                    .unwrap_or_else(|| msg.from.as_ref().unwrap().id.into()),
             ),
             via_bot: msg
                 .via_bot
@@ -210,7 +212,10 @@ mod types_tests {
             )
             .unwrap(),
         );
-        assert_eq!(msg.sender.unwrap(), teloxide::types::UserId(1).into());
+        assert_eq!(
+            msg.sender.unwrap(),
+            teloxide::types::ChatId::from(teloxide::types::UserId(1))
+        );
     }
 
     #[test]
