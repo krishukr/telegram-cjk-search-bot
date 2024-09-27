@@ -181,14 +181,8 @@ async fn to_db_message(
             id: message.id,
             via_bot: message.via_bot.clone(),
             chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
-            date: chrono::DateTime::from_utc(
-                chrono::NaiveDateTime::from_timestamp_opt(
-                    message.date_unixtime.parse::<i64>().unwrap(),
-                    0,
-                )
+            date: chrono::DateTime::from_timestamp(message.date_unixtime.parse().unwrap(), 0)
                 .unwrap(),
-                chrono::Utc,
-            ),
         })
     })
 }

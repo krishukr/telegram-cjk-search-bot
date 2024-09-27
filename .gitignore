@@ -6,6 +6,7 @@ data.ms
 dumps
 history/result.json
 /target
+/result
 
 /*.sh
 

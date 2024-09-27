@@ -1,4 +1,7 @@
+use std::{env, str::FromStr};
+
 use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, MessageId};
 
@@ -89,7 +92,7 @@ impl From<&teloxide::types::Message> for Message {
 impl Message {
     pub fn format_time(&self) -> String {
         self.date
-            .with_timezone(chrono::Local::now().offset())
+            .with_timezone(&Tz::from_str(&env::var("TZ").unwrap_or_default()).unwrap_or_default())
             .format("%Y-%m-%d")
             .to_string()
     }
