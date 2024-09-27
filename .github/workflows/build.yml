@@ -22,8 +22,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install Qemu
+        uses: docker/setup-qemu-action@v3
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v14
+        with:
+          extra-conf: "extra-platforms = aarch64-linux"
       - name: Setup cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
       - name: Build image
