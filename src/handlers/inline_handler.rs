@@ -100,8 +100,8 @@ async fn parse_error_handler(bot: Bot, q: InlineQuery, e: clap::Error) -> Respon
             .description(format!("{}", e.render())),
         )],
     )
-    .next_offset(0.to_string())
-    .cache_time(0)
+    .next_offset("")
+    .cache_time(10)
     .send()
     .await
     .and(Ok(()))
