@@ -22,16 +22,16 @@ pub trait Insertable: Serialize {
     fn init(db: &Db) -> impl std::future::Future<Output = ()> + Send;
 }
 
-pub enum FilterOption<T> {
-    Some(Vec<T>),
+pub enum FilterOption<'a, T> {
+    Some(&'a Vec<T>),
     All,
     None,
 }
 
-pub struct Filter {
+pub struct Filter<'a> {
     pub chats: Vec<Chat>,
-    pub include_bots: FilterOption<String>,
-    pub only_bots: FilterOption<String>,
+    pub include_bots: FilterOption<'a, String>,
+    pub only_bots: FilterOption<'a, String>,
 }
 
 impl Db {
@@ -51,7 +51,7 @@ impl Db {
     pub async fn search_message_with_filter(
         self,
         text: &String,
-        filter: &Filter,
+        filter: &Filter<'_>,
         offset: Option<usize>,
     ) -> SearchResults<Message> {
         log::debug!("search message with filter {}", filter.render());
@@ -222,7 +222,7 @@ impl Insertable for Sender {
     }
 }
 
-impl Filter {
+impl Filter<'_> {
     fn render(&self) -> String {
         format!(
             "chat_id IN {:?}{}{}",
