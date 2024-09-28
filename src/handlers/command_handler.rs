@@ -29,7 +29,7 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
     }
 }
 
-async fn help_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
+pub async fn help_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
     log::debug!("got command help");
     bot.send_message(
         msg.chat.id,
