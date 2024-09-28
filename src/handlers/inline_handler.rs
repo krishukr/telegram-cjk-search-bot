@@ -62,9 +62,10 @@ async fn parsed_handler(bot: Bot, q: InlineQuery, cli: Cli) -> ResponseResult<()
                 .unwrap_or(FilterOption::None)
         },
     };
+    let current_offset: usize = q.offset.parse().unwrap_or_default();
 
     let search_results = Db::new()
-        .search_message_with_filter(&cli.query.join(" "), &search_filter)
+        .search_message_with_filter(&cli.query.join(" "), &search_filter, Some(current_offset))
         .await;
     bot.answer_inline_query(
         &q.id,
@@ -81,6 +82,7 @@ async fn parsed_handler(bot: Bot, q: InlineQuery, cli: Cli) -> ResponseResult<()
         .try_collect::<Vec<_>>()
         .await?,
     )
+    .next_offset((current_offset + TELEGRAM_INLINE_REPLY_LIMIT).to_string())
     .cache_time(0)
     .send()
     .await
@@ -99,6 +101,7 @@ async fn parse_error_handler(bot: Bot, q: InlineQuery, e: clap::Error) -> Respon
             .description(format!("{}", e.render())),
         )],
     )
+    .next_offset(0.to_string())
     .cache_time(0)
     .send()
     .await
