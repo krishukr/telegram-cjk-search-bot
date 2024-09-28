@@ -49,7 +49,7 @@ struct Cli {
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    pretty_env_logger::init_timed();
     Db::new().init().await;
     let cli = Cli::parse();
 

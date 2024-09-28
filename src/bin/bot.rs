@@ -11,7 +11,7 @@ This bot is open-sourced at https://github.com/krishukr/telegram-cjk-search-bot"
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    pretty_env_logger::init_timed();
 
     let bot = Bot::from_env();
     Db::new().init().await;
