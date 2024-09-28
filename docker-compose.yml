@@ -11,6 +11,7 @@ services:
       - MEILISEARCH_HOST=http://meilisearch:7700
       - TZ=Asia/Shanghai
       - RUST_LOG=INFO,telegram_cjk_search_bot=INFO
+      # - DESCRIPTION_CUSTOMIZED # enable this to customize your bot's description
     depends_on:
       - meilisearch
   meilisearch:
