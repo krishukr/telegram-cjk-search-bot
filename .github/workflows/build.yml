@@ -1,14 +1,7 @@
-name: Test, Build, Publish, & Deploy
+name: Test & Build
 
 on:
-  push:
-  workflow_dispatch: 
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-  CARGO_TERM_COLOR: always
-
+  workflow_call:
 
 jobs:
   build:
@@ -39,69 +32,3 @@ jobs:
           path: result
           if-no-files-found: error
           compression-level: 0
-
-  publish:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Get artifacts
-        uses: actions/download-artifact@v4
-      - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Get docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      - name: Load and Push amd64 image
-        run: |
-          docker load -i oci-image-x86_64-linux/result
-          echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
-            docker tag $(docker images -q telegram-cjk-search-bot:latest) $tag
-          done
-          docker push --all-tags ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      # - name: Load and Push arm64 image
-      #   run: |
-      #     docker load -i oci-image-aarch64-linux/result
-      #     echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
-      #       docker tag $(docker images -q telegram-cjk-search-bot:latest) $tag-arm64
-      #     done
-      #     docker push --all-tags ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      # - name: Create and push multi-arch manifest
-      #   run: |
-      #     echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
-      #       docker manifest create $tag \
-      #         -a ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag-amd64 \
-      #         -a ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag-arm64
-      #       docker manifest push $tag
-      #     done
-
-  ssh-deploy:
-    runs-on: self-hosted
-    needs: [build, publish]
-    steps:
-      - name: Deploy
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USERNAME }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          port: ${{ secrets.DEPLOY_PORT }}
-          script: >
-            cd ./telegram-cjk-search-bot &&
-            sudo docker compose pull &&
-            sudo docker compose up -d

@@ -1,4 +1,4 @@
-name: Test
+name: Build
 
 on: [ pull_request ]
 
@@ -7,26 +7,4 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - system: "x86_64-linux"
-          # - system: "aarch64-linux"
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v14
-      - name: Setup cache
-        uses: DeterminateSystems/magic-nix-cache-action@v8
-      - name: Build image
-        run: nix build .#packages.${{ matrix.system }}.default
-      - name: Upload image to artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: oci-image-${{ matrix.system }}
-          path: result
-          if-no-files-found: error
-          compression-level: 0
+    uses: ./.github/workflows/build.yml
