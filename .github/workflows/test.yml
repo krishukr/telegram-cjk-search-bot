@@ -7,4 +7,6 @@ env:
 
 jobs:
   build:
+    permissions:
+      actions: write
     uses: ./.github/workflows/build.yml
