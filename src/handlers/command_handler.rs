@@ -6,17 +6,17 @@ use teloxide::{prelude::*, types::ReplyParameters, utils::command::BotCommands};
 #[derive(BotCommands, Clone)]
 #[command(
     rename_rule = "lowercase",
-    description = "These commands are supported:" // TODO: rewrite these descs
+    description = "These commands are supported in supergroups:"
 )]
 pub enum Command {
     #[command(description = "Display this text.")]
     Help,
     #[command(
-        description = "Start to log messages in this chat. Privilege is needed for this operation."
+        description = "Start logging messages in this supergroup. You need to be an Admin or Owner to perform this action."
     )]
     Start,
     #[command(
-        description = "Stop to log messages in this chat. Privilege is needed for this operation."
+        description = "Stop logging messages in this supergroup. You need to be an Admin or Owner to perform this action."
     )]
     Stop,
 }
@@ -54,12 +54,17 @@ pub async fn help_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
     log::debug!("got command help");
     bot.send_message(
         msg.chat.id,
-        format!(
-            "{}\n\nInline {}",
-            Command::descriptions().to_string(),
-            inline_handler::Cli::command().render_help()
+        format!("
+{}\n
+To start a query, type <code>{}</code> in the text input field in any chat. Typing to \"Saved Messages\" is recommended because it won't interrupt others. \n
+{}",
+            html_escape::encode_text(&Command::descriptions().to_string()),
+            crate::BOT_USERNAME.get().unwrap(),
+            html_escape::encode_text(&inline_handler::Cli::command().render_help().to_string())
+                .replace(crate::BOT_USERNAME.get().unwrap(), &format!("<code>{}</code>", crate::BOT_USERNAME.get().unwrap()))
         ),
     )
+    .parse_mode(teloxide::types::ParseMode::Html)
     .await
     .and(Ok(()))
 }

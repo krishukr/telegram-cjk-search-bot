@@ -15,6 +15,7 @@ use teloxide::{
 #[command(disable_version_flag = true, disable_help_flag = true)]
 #[command(author, version, long_about = None)]
 pub struct Cli {
+    /// Keywords to search
     #[arg(default_value = "", hide_default_value = true)]
     query: Vec<String>,
 
