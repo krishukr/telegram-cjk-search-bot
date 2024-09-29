@@ -46,46 +46,47 @@ pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
 }
 
 async fn parsed_handler(bot: Bot, q: InlineQuery, cli: Cli) -> ResponseResult<()> {
-    let search_filter = Filter {
-        chats: get_user_chats(bot.clone(), q.from.id).await?,
-        include_bots: if cli.include_all_bots || cli.only_all_bots || cli.only_bots.is_some() {
-            FilterOption::All
-        } else {
-            cli.include_bots
-                .map(|x| FilterOption::Some(x))
-                .unwrap_or(FilterOption::None)
-        },
-        only_bots: if cli.only_all_bots {
-            FilterOption::All
-        } else {
-            cli.only_bots
-                .map(|x| FilterOption::Some(x))
-                .unwrap_or(FilterOption::None)
-        },
-    };
+    let search_filter = construct_filter(bot.clone(), &q, &cli).await?;
+    let current_offset: Option<usize> = q.offset.parse::<usize>().ok();
 
     let search_results = Db::new()
-        .search_message_with_filter(&cli.query.join(" "), &search_filter)
+        .search_message_with_filter(&cli.query.join(" "), &search_filter, current_offset)
         .await;
-    bot.answer_inline_query(
-        &q.id,
-        futures::stream::iter(search_results.hits.into_iter().map(|m| {
-            (
-                m.result,
-                m.formatted_result.unwrap()["text"]
-                    .as_str()
-                    .unwrap()
-                    .to_string(),
-            )
-        }))
-        .then(|(m, f)| construct_query_result(bot.clone(), m, f))
-        .try_collect::<Vec<_>>()
-        .await?,
-    )
-    .cache_time(0)
-    .send()
-    .await
-    .and(Ok(()))
+    let mut results = futures::stream::iter(search_results.hits.into_iter().map(|m| {
+        (
+            m.result,
+            m.formatted_result.unwrap()["text"]
+                .as_str()
+                .unwrap()
+                .to_string(),
+        )
+    }))
+    .then(|(m, f)| construct_query_result(bot.clone(), m, f))
+    .try_collect::<Vec<_>>()
+    .await?;
+
+    let next_offset = match results.len() < INLINE_REPLY_LIMIT {
+        true => String::new(),
+        false => (current_offset.unwrap_or_default() + INLINE_REPLY_LIMIT).to_string(),
+    };
+    if results.len() < INLINE_REPLY_LIMIT {
+        let title = match current_offset.unwrap_or_default() + results.len() {
+            0 => "No match.",
+            _ => "No more.",
+        };
+        results.push(InlineQueryResult::Article(InlineQueryResultArticle::new(
+            "empty",
+            title,
+            InputMessageContent::Text(InputMessageContentText::new(title)),
+        )));
+    }
+
+    bot.answer_inline_query(&q.id, results)
+        .next_offset(next_offset)
+        .cache_time(0)
+        .send()
+        .await
+        .and(Ok(()))
 }
 
 async fn parse_error_handler(bot: Bot, q: InlineQuery, e: clap::Error) -> ResponseResult<()> {
@@ -100,7 +101,8 @@ async fn parse_error_handler(bot: Bot, q: InlineQuery, e: clap::Error) -> Respon
             .description(format!("{}", e.render())),
         )],
     )
-    .cache_time(0)
+    .next_offset("")
+    .cache_time(10)
     .send()
     .await
     .and(Ok(()))
@@ -217,6 +219,32 @@ async fn generate_from_str(bot: Bot, m: &types::Message) -> ResponseResult<Strin
             get_name_from_chat_id(bot.clone(), m.chat_id).await?
         ))
     }
+}
+
+async fn construct_filter<'a>(
+    bot: Bot,
+    q: &'a InlineQuery,
+    cli: &'a Cli,
+) -> ResponseResult<Filter<'a>> {
+    Ok(Filter {
+        chats: get_user_chats(bot, q.from.id).await?,
+        include_bots: if cli.include_all_bots || cli.only_all_bots || cli.only_bots.is_some() {
+            FilterOption::All
+        } else {
+            cli.include_bots
+                .as_ref()
+                .map(|x| FilterOption::Some(x))
+                .unwrap_or(FilterOption::None)
+        },
+        only_bots: if cli.only_all_bots {
+            FilterOption::All
+        } else {
+            cli.only_bots
+                .as_ref()
+                .map(|x| FilterOption::Some(x))
+                .unwrap_or(FilterOption::None)
+        },
+    })
 }
 
 async fn construct_query_result(
