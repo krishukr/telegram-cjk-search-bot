@@ -1,7 +1,14 @@
 use super::inline_handler;
 use crate::db::*;
 use clap::CommandFactory;
-use teloxide::{prelude::*, types::ReplyParameters, utils::command::BotCommands};
+use teloxide::{
+    prelude::*,
+    types::{
+        InlineKeyboardButton, InlineKeyboardButtonKind::SwitchInlineQueryCurrentChat,
+        InlineKeyboardMarkup, ReplyParameters,
+    },
+    utils::command::BotCommands,
+};
 
 #[derive(BotCommands, Clone)]
 #[command(
@@ -52,6 +59,7 @@ pub async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> ResponseRe
 
 pub async fn help_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
     log::debug!("got command help");
+    let bot_username = crate::BOT_USERNAME.get().unwrap();
     bot.send_message(
         msg.chat.id,
         format!("
@@ -59,11 +67,14 @@ pub async fn help_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
 To start a query, type <code>{}</code> in the text input field in any chat. Typing to \"Saved Messages\" is recommended because it won't interrupt others. \n
 {}",
             html_escape::encode_text(&Command::descriptions().to_string()),
-            crate::BOT_USERNAME.get().unwrap(),
+            bot_username,
             html_escape::encode_text(&inline_handler::Cli::command().render_help().to_string())
-                .replace(crate::BOT_USERNAME.get().unwrap(), &format!("<code>{}</code>", crate::BOT_USERNAME.get().unwrap()))
+                .replace(bot_username, &format!("<code>{}</code>", bot_username))
         ),
     )
+    .reply_markup(InlineKeyboardMarkup::new([[
+        InlineKeyboardButton::new("Try it Now!", SwitchInlineQueryCurrentChat("".to_string()))
+        ]]))
     .parse_mode(teloxide::types::ParseMode::Html)
     .await
     .and(Ok(()))
