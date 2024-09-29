@@ -33,6 +33,39 @@ Since there are no documents for exported messages, unexpected issues may arise 
 
 Feel free to reach me if you have any questions.
 
+### Frequently Asked Questions
+
+#### What is a "supergroup"?
+
+A supergroup is a type of Telegram group that supports larger member capacities and offers advanced features. Each message in a supergroup has a unique URL, which is necessary for searching and locating messages.
+
+#### How can I create one?
+
+To create a supergroup, start by creating a public group in Telegram. Once the group is public, it converts into a supergroup automatically.
+
+#### What about my existing groups?
+
+If you have existing private groups, just set the group to public, **save** the setting, and switch back to private. This gives you a private supergroup.
+
+#### Do you have a ready-to-use instance?
+
+Officially, there is no public instance provided.
+
+#### How to update?
+
+This projects follows [Semantic Versioning](https://semver.org). Docker image tags include `MAJOR.MINOR.PATCH` and `MAJOR.MINOR` .
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+### Development
+
+This project utilzes Nix Flake to manage development and building environment. You can run `nix develop` to open an interactive shell or run `direnv allow` to integrate the environment with your workflow.
+
+Pull requests and issues would be supremely welcomed.
+
 ### Credits
 
 Powered by the blazing-fast [Meilisearch](https://www.meilisearch.com/).
