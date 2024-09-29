@@ -234,7 +234,7 @@ impl Filter<'_> {
             },
             match &self.only_bots {
                 FilterOption::Some(x) => format!(" AND via_bot IN {:?}", x),
-                FilterOption::All => format!(" AND via_bot EXISTS"),
+                FilterOption::All => " AND via_bot EXISTS".to_string(),
                 FilterOption::None => "".to_string(),
             }
         )

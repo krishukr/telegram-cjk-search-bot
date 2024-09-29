@@ -36,8 +36,14 @@ enum ChatAction {
 impl ChatAction {
     async fn perform(&self, chat_id: ChatId) -> ResponseResult<()> {
         match self {
-            ChatAction::Start => Ok(Db::new().insert_chat_with_id(chat_id).await),
-            ChatAction::Stop => Ok(Db::new().delete_chat_with_id(chat_id).await),
+            ChatAction::Start => {
+                Db::new().insert_chat_with_id(chat_id).await;
+                Ok(())
+            },
+            ChatAction::Stop => {
+                Db::new().delete_chat_with_id(chat_id).await;
+                Ok(())
+            },
         }
     }
 

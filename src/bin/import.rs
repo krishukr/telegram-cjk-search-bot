@@ -78,6 +78,7 @@ fn read_content_from_file(file_path: &PathBuf) -> Content {
     from_str::<Content>(&file_content).expect("Failed to parse content from file")
 }
 
+#[allow(clippy::all)]
 async fn process_messages(
     content: Content,
     bot_username: String,
@@ -152,8 +153,7 @@ async fn to_db_message(
     if message.message_type != "message"
         || message
             .via_bot
-            .as_ref()
-            .and_then(|u| Some(u == bot_username))
+            .as_ref().map(|u| u == bot_username)
             .unwrap_or(false)
         || message.id < 1
     {
@@ -169,8 +169,7 @@ async fn to_db_message(
         return None;
     }
 
-    message.from_id.as_ref().and_then(|from_id| {
-        Some(types::Message {
+    message.from_id.as_ref().map(|from_id| types::Message {
             key: format!("-100{}_{}", chat_id, message.id),
             text,
             from: None,
@@ -184,7 +183,6 @@ async fn to_db_message(
             date: chrono::DateTime::from_timestamp(message.date_unixtime.parse().unwrap(), 0)
                 .unwrap(),
         })
-    })
 }
 
 fn spawn_insert_task<T>(items: Vec<T>) -> JoinHandle<()>

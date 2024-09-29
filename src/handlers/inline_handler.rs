@@ -130,7 +130,7 @@ async fn is_chat_member_present(
 )]
 async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<types::Chat>> {
     log::debug!("uncached get_user_chats {}", user_id);
-    Ok(futures::stream::iter(Db::new().get_all_chats().await)
+    futures::stream::iter(Db::new().get_all_chats().await)
         .filter_map(|chat| {
             let bot = bot.clone();
             async move {
@@ -142,7 +142,7 @@ async fn get_user_chats(bot: Bot, user_id: UserId) -> ResponseResult<Vec<types::
             }
         })
         .try_collect()
-        .await?)
+        .await
 }
 
 #[cached(
@@ -233,7 +233,7 @@ async fn construct_filter<'a>(
         } else {
             cli.include_bots
                 .as_ref()
-                .map(|x| FilterOption::Some(x))
+                .map(FilterOption::Some)
                 .unwrap_or(FilterOption::None)
         },
         only_bots: if cli.only_all_bots {
@@ -241,7 +241,7 @@ async fn construct_filter<'a>(
         } else {
             cli.only_bots
                 .as_ref()
-                .map(|x| FilterOption::Some(x))
+                .map(FilterOption::Some)
                 .unwrap_or(FilterOption::None)
         },
     })
