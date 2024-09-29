@@ -64,11 +64,11 @@ async fn parsed_handler(bot: Bot, q: InlineQuery, cli: Cli) -> ResponseResult<()
     .try_collect::<Vec<_>>()
     .await?;
 
-    let next_offset = match results.len() < TELEGRAM_INLINE_REPLY_LIMIT {
+    let next_offset = match results.len() < INLINE_REPLY_LIMIT {
         true => String::new(),
-        false => (current_offset.unwrap_or_default() + TELEGRAM_INLINE_REPLY_LIMIT).to_string(),
+        false => (current_offset.unwrap_or_default() + INLINE_REPLY_LIMIT).to_string(),
     };
-    if results.len() < TELEGRAM_INLINE_REPLY_LIMIT {
+    if results.len() < INLINE_REPLY_LIMIT {
         let title = match current_offset.unwrap_or_default() + results.len() {
             0 => "No match.",
             _ => "No more.",

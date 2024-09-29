@@ -11,7 +11,7 @@ use teloxide::types::ChatId;
 use crate::types::*;
 
 const GET_LIMIT: usize = 100;
-pub const TELEGRAM_INLINE_REPLY_LIMIT: usize = 50;
+pub const INLINE_REPLY_LIMIT: usize = 20;
 
 pub struct Db(pub Client);
 
@@ -58,7 +58,7 @@ impl Db {
         self.0
             .index(Message::INDEX)
             .search()
-            .with_limit(TELEGRAM_INLINE_REPLY_LIMIT)
+            .with_limit(INLINE_REPLY_LIMIT)
             .with_offset(offset.unwrap_or_default())
             .with_query(text)
             .with_filter(&filter.render())
