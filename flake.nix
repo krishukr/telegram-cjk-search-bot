@@ -125,6 +125,9 @@
               # rust-analyzer
               lldb_15
 
+              commitizen
+              pre-commit
+
               meilisearch
             ];
           };
