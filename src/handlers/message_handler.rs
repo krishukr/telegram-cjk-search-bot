@@ -5,9 +5,8 @@ use teloxide::{prelude::*, types::Me, utils::command::BotCommands};
 pub async fn message_handler(bot: Bot, msg: Message, me: Me) -> ResponseResult<()> {
     log::debug!("{}", serde_json::to_string_pretty(&msg).unwrap());
 
-
     if msg.thread_id.is_some()
-        || !msg.chat.is_supergroup()
+        || !msg.chat.is_chat()
         || msg.via_bot.as_ref().map_or(false, |b| b.id == me.id)
     {
         Ok(())
