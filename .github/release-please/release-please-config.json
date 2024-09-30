@@ -1,0 +1,8 @@
+{
+  "extra-files": [
+    {
+      "type": "generic",
+      "path": "docker-compose.yml"
+    }
+  ]
+}

@@ -19,3 +19,5 @@ jobs:
         with:
           token: ${{ secrets.KRISHUKR_PAT }}
           release-type: rust
+          config-file: .github/release-please/release-please-config.json
+          manifest-file: .github/release-please/.release-please-config.json
