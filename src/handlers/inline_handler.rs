@@ -1,11 +1,12 @@
 use crate::{db::*, types};
 use cached::{proc_macro::cached, Cached};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use futures::{StreamExt, TryStreamExt};
 use teloxide::{
     prelude::*,
     types::{
         InlineQueryResult, InlineQueryResultArticle, InputMessageContent, InputMessageContentText,
+        ParseMode::Html,
     },
     ApiError, RequestError,
 };
@@ -90,15 +91,30 @@ async fn parsed_handler(bot: Bot, q: InlineQuery, cli: Cli) -> ResponseResult<()
 }
 
 async fn parse_error_handler(bot: Bot, q: InlineQuery, e: clap::Error) -> ResponseResult<()> {
+    let bot_username = crate::BOT_USERNAME.get().unwrap();
+
     bot.answer_inline_query(
         &q.id,
         [InlineQueryResult::Article(
             InlineQueryResultArticle::new(
                 "1",
                 "Parse Error!",
-                InputMessageContent::Text(InputMessageContentText::new(format!("{}", e.render()))),
+                InputMessageContent::Text(
+                    InputMessageContentText::new(format!(
+                        "{}\nOptions:\n{}",
+                        html_escape::encode_text(&e.render().to_string())
+                            .replace(bot_username, &format!("<code>{}</code>", bot_username)),
+                        html_escape::encode_text(
+                            &Cli::command()
+                                .help_template("{options}")
+                                .render_help()
+                                .to_string()
+                        )
+                    ))
+                    .parse_mode(Html),
+                ),
             )
-            .description(format!("{}", e.render())),
+            .description(e.render().to_string().lines().next().unwrap_or_default()),
         )],
     )
     .next_offset("")
@@ -263,7 +279,7 @@ async fn construct_query_result(
                     m.link(),
                     html_escape::encode_text(&generate_from_str(bot.clone(), &m).await?),
                 ))
-                .parse_mode(teloxide::types::ParseMode::Html),
+                .parse_mode(Html),
             ),
         )
         .description(format!(
