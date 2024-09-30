@@ -131,7 +131,7 @@ async fn is_chat_member_present(
 ) -> ResponseResult<bool> {
     match bot.get_chat_member(chat_id, user_id).await {
         Ok(m) => Ok(m.is_present()),
-        Err(RequestError::Api(ApiError::UserNotFound)) => Ok(false),
+        Err(RequestError::Api(_)) => Ok(false),
         Err(e) => Err(e),
     }
 }
