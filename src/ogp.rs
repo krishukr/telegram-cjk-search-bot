@@ -49,18 +49,7 @@ impl ElementHandle for NodeHandle {
     }
 }
 
+#[cfg(feature = "private_tests")]
 #[cfg(test)]
-mod ogp_test {
-    use super::*;
-
-    #[tokio::test]
-    async fn read_open_graph_test() {
-        assert_eq!(
-            "https://github.com/krishukr/telegram-cjk-search-bot",
-            read_open_graph("https://github.com/krishukr/telegram-cjk-search-bot".to_string())
-                .await
-                .unwrap()
-                .url
-        );
-    }
-}
+#[path = "./private_tests/ogp_test.rs"]
+mod ogp_test;
