@@ -1,4 +1,4 @@
-use super::command_handler;
+use super::{command_handler, web_page_handler};
 use crate::{db::*, handlers::command_handler::help_handler, types};
 use teloxide::{prelude::*, types::Me, utils::command::BotCommands};
 
@@ -36,6 +36,8 @@ async fn normal_message_handler(msg: Message) -> ResponseResult<()> {
 
     Db::new().insert(&types::Sender::from(&msg)).await;
     Db::new().insert(&vec![types::Message::from(&msg)]).await;
+
+    web_page_handler(msg).await;
 
     Ok(())
 }

@@ -1,3 +1,5 @@
+// TODO: Import Web Pages in history, throttling may be needed
+
 use clap::Parser;
 use serde::Deserialize;
 use serde_json::from_str;
@@ -153,7 +155,8 @@ async fn to_db_message(
     if message.message_type != "message"
         || message
             .via_bot
-            .as_ref().map(|u| u == bot_username)
+            .as_ref()
+            .map(|u| u == bot_username)
             .unwrap_or(false)
         || message.id < 1
     {
@@ -170,19 +173,20 @@ async fn to_db_message(
     }
 
     message.from_id.as_ref().map(|from_id| types::Message {
-            key: format!("-100{}_{}", chat_id, message.id),
-            text,
-            from: None,
-            sender: Some(match from_id.starts_with("user") {
-                true => UserId(from_id[4..].parse::<u64>().unwrap()).into(),
-                false => ChatId(MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap()),
-            }),
-            id: message.id,
-            via_bot: message.via_bot.clone(),
-            chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
-            date: chrono::DateTime::from_timestamp(message.date_unixtime.parse().unwrap(), 0)
-                .unwrap(),
-        })
+        key: format!("-100{}_{}", chat_id, message.id),
+        text,
+        from: None,
+        sender: Some(match from_id.starts_with("user") {
+            true => UserId(from_id[4..].parse::<u64>().unwrap()).into(),
+            false => ChatId(MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap()),
+        }),
+        id: message.id,
+        via_bot: message.via_bot.clone(),
+        chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
+        date: chrono::DateTime::from_timestamp(message.date_unixtime.parse().unwrap(), 0).unwrap(),
+        web_page: None,
+        thumbnail_url: None,
+    })
 }
 
 fn spawn_insert_task<T>(items: Vec<T>) -> JoinHandle<()>

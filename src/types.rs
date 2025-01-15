@@ -2,8 +2,11 @@ use std::{env, str::FromStr};
 
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use teloxide::types::{ChatId, MessageId};
+
+use crate::ogp::WebPage;
 
 #[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct Chat {
@@ -63,6 +66,10 @@ pub struct Message {
     pub via_bot: Option<String>,
     pub id: i32,
     pub chat_id: ChatId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web_page: Option<Url>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thumbnail_url: Option<Url>,
     pub date: DateTime<Utc>,
 }
 
@@ -83,6 +90,8 @@ impl From<&teloxide::types::Message> for Message {
                 .as_ref()
                 .map(|u| format!("@{}", u.username.clone().unwrap())),
             id: msg.id.0,
+            web_page: None,
+            thumbnail_url: None,
             chat_id: msg.chat.id,
             date: msg.date,
         }
@@ -101,6 +110,18 @@ impl Message {
         teloxide::types::Message::url_of(self.chat_id, None, MessageId(self.id))
             .unwrap()
             .to_string()
+    }
+
+    pub fn set_web_page(mut self, page: &WebPage) -> Self {
+        self.web_page = Some(page.url.clone());
+        self.thumbnail_url = page.thumbnail_url.clone();
+        self.key = format!(
+            "{}_{}",
+            self.key,
+            crc32fast::hash(page.url.as_str().as_bytes())
+        );
+        self.text = format!("{}\n{}", page.title, page.desc);
+        self
     }
 }
 
