@@ -37,8 +37,9 @@ where
             .get_attr(parser)?,
         thumbnail_url: dom
             .query_selector("meta[property='og:image']")?
-            .next()?
-            .get_attr(parser),
+            .next()
+            .map(|x| x.get_attr(parser))
+            .flatten(),
     })
 }
 
