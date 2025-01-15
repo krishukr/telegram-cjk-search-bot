@@ -55,9 +55,12 @@ mod ogp_test {
 
     #[tokio::test]
     async fn read_open_graph_test() {
-        println!(
-            "{:?}",
-            read_open_graph("https://youtu.be/g-pG79LOtMw".to_string()).await
+        assert_eq!(
+            "https://www.youtube.com/watch?v=g-pG79LOtMw",
+            read_open_graph("https://youtu.be/g-pG79LOtMw".to_string())
+                .await
+                .unwrap()
+                .url
         );
     }
 }
