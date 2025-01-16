@@ -28,10 +28,17 @@ pub enum FilterOption<'a, T> {
     None,
 }
 
+pub enum EnableOption {
+    All,
+    Enable,
+    Disable,
+}
+
 pub struct Filter<'a> {
     pub chats: Vec<Chat>,
     pub include_bots: FilterOption<'a, String>,
     pub only_bots: FilterOption<'a, String>,
+    pub urls: EnableOption,
 }
 
 impl Db {
@@ -173,7 +180,7 @@ impl Insertable for Message {
             .unwrap();
         client
             .index(Self::INDEX)
-            .set_filterable_attributes(&["chat_id", "via_bot"])
+            .set_filterable_attributes(&["chat_id", "via_bot", "web_page"])
             .await
             .unwrap();
         client
@@ -225,7 +232,7 @@ impl Insertable for Sender {
 impl Filter<'_> {
     fn render(&self) -> String {
         format!(
-            "chat_id IN {:?}{}{}",
+            "chat_id IN {:?}{}{}{}",
             self.chats,
             match &self.include_bots {
                 FilterOption::Some(x) => format!(" AND (via_bot NOT EXISTS OR via_bot IN {:?})", x),
@@ -236,6 +243,11 @@ impl Filter<'_> {
                 FilterOption::Some(x) => format!(" AND via_bot IN {:?}", x),
                 FilterOption::All => " AND via_bot EXISTS".to_string(),
                 FilterOption::None => "".to_string(),
+            },
+            match self.urls {
+                EnableOption::All => " AND web_page EXISTS".to_string(),
+                EnableOption::Enable => String::default(),
+                EnableOption::Disable => " AND web_page NOT EXISTS".to_string(),
             }
         )
     }

@@ -35,6 +35,14 @@ pub struct Cli {
     /// Only search for messages via specific bots
     #[arg(short, long)]
     only_bots: Option<Vec<String>>,
+
+    /// Do not include web pages in search results
+    #[arg(short = 'm', long, conflicts_with = "only_urls")]
+    no_urls: bool,
+
+    /// Only search for web pages
+    #[arg(short = 'w', long, conflicts_with = "no_urls")]
+    only_urls: bool,
 }
 
 pub async fn inline_handler(bot: Bot, q: InlineQuery) -> ResponseResult<()> {
@@ -259,6 +267,13 @@ async fn construct_filter<'a>(
                 .as_ref()
                 .map(FilterOption::Some)
                 .unwrap_or(FilterOption::None)
+        },
+        urls: if cli.only_urls {
+            EnableOption::All
+        } else if cli.no_urls {
+            EnableOption::Disable
+        } else {
+            EnableOption::Enable
         },
     })
 }
