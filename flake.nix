@@ -2,7 +2,8 @@
   description = "A Nix-flake-based Rust development environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs-750fc50b.url = "github:NixOS/nixpkgs/750fc50bfd132a44972aa15bb21937ae26303bc4";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -14,6 +15,7 @@
     {
       self,
       nixpkgs,
+      nixpkgs-750fc50b,
       rust-overlay,
       crane,
     }:
@@ -29,40 +31,6 @@
             ];
           };
         })
-        (final: prev: {
-          meilisearch = prev.meilisearch.override (old: {
-            rustPlatform = old.rustPlatform // {
-              buildRustPackage =
-                args:
-                old.rustPlatform.buildRustPackage (
-                  args
-                  // {
-                    version = "v1.2.1";
-
-                    src = prev.fetchFromGitHub {
-                      owner = "meilisearch";
-                      repo = "MeiliSearch";
-                      rev = "refs/tags/v1.2.1";
-                      hash = "sha256-snoC6ZnKJscwoXdw4TcZsjoygxAjpsBW1qlhoksCguY=";
-                    };
-
-                    cargoLock = {
-                      lockFile = prev.fetchurl {
-                        url = "https://github.com/meilisearch/meilisearch/raw/v1.2.1/Cargo.lock";
-                        hash = "sha256-ZHHjJK83jOezmXBnbknx8zXSplxmqETUesXcSLr6FqE=";
-                      };
-                      outputHashes = {
-                        "actix-web-static-files-3.0.5" = "sha256-2BN0RzLhdykvN3ceRLkaKwSZtel2DBqZ+uz4Qut+nII=";
-                        "heed-0.12.5" = "sha256-WOdpgc3sDNKBSYWB102xTxmY1SWljH9Q1+6xmj4Rb8Q=";
-                        "lmdb-rkv-sys-0.15.1" = "sha256-zLHTprwF7aa+2jaD7dGYmOZpJYFijMTb4I3ODflNUII=";
-                        "nelson-0.1.0" = "sha256-eF672quU576wmZSisk7oDR7QiDafuKlSg0BTQkXnzqY=";
-                      };
-                    };
-                  }
-                );
-            };
-          });
-        })
       ];
       supportedSystems = [
         "x86_64-linux"
@@ -75,7 +43,46 @@
         nixpkgs.lib.genAttrs supportedSystems (
           system:
           f rec {
-            pkgs = import nixpkgs { inherit overlays system; };
+            pkgs-750fc50b = import nixpkgs-750fc50b { inherit system; };
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = overlays ++ [
+                (final: prev: {
+                  meilisearch = pkgs-750fc50b.meilisearch.override (old: {
+                    rustPlatform = old.rustPlatform // {
+                      buildRustPackage =
+                        args:
+                        old.rustPlatform.buildRustPackage (
+                          args
+                          // {
+                            version = "v1.2.1";
+
+                            src = pkgs-750fc50b.fetchFromGitHub {
+                              owner = "meilisearch";
+                              repo = "MeiliSearch";
+                              rev = "refs/tags/v1.2.1";
+                              hash = "sha256-snoC6ZnKJscwoXdw4TcZsjoygxAjpsBW1qlhoksCguY=";
+                            };
+
+                            cargoLock = {
+                              lockFile = pkgs-750fc50b.fetchurl {
+                                url = "https://github.com/meilisearch/meilisearch/raw/v1.2.1/Cargo.lock";
+                                hash = "sha256-ZHHjJK83jOezmXBnbknx8zXSplxmqETUesXcSLr6FqE=";
+                              };
+                              outputHashes = {
+                                "actix-web-static-files-3.0.5" = "sha256-2BN0RzLhdykvN3ceRLkaKwSZtel2DBqZ+uz4Qut+nII=";
+                                "heed-0.12.5" = "sha256-WOdpgc3sDNKBSYWB102xTxmY1SWljH9Q1+6xmj4Rb8Q=";
+                                "lmdb-rkv-sys-0.15.1" = "sha256-zLHTprwF7aa+2jaD7dGYmOZpJYFijMTb4I3ODflNUII=";
+                                "nelson-0.1.0" = "sha256-eF672quU576wmZSisk7oDR7QiDafuKlSg0BTQkXnzqY=";
+                              };
+                            };
+                          }
+                        );
+                    };
+                  });
+                })
+              ];
+            };
             craneLib = (crane.mkLib pkgs).overrideToolchain pkgs.rustToolchain;
 
             nativeBuildInputs = with pkgs; [
