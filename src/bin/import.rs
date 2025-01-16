@@ -53,7 +53,9 @@ async fn main() {
     Db::new().init().await;
     let cli = Cli::parse();
 
-    let bot_username = format!("@{}", Bot::from_env().get_me().await.unwrap().username());
+    let me = Bot::from_env().get_me().await.unwrap();
+    let bot_username = format!("@{}", me.username());
+    let bot_userid = me.id;
     let content = read_content_from_file(&cli.file);
 
     assert!(
@@ -62,7 +64,8 @@ async fn main() {
     );
     log::info!("Paresed {} items.", content.messages.len());
 
-    let (messages_count, senders_count, handles) = process_messages(content, bot_username).await;
+    let (messages_count, senders_count, handles) =
+        process_messages(content, bot_username, bot_userid).await;
     log::info!(
         "Inserting {messages_count} messages and {senders_count} senders. Waiting for completion."
     );
@@ -82,6 +85,7 @@ fn read_content_from_file(file_path: &PathBuf) -> Content {
 async fn process_messages(
     content: Content,
     bot_username: String,
+    bot_userid: UserId,
 ) -> (usize, usize, Vec<JoinHandle<()>>) {
     let messages_count = Arc::new(Mutex::new(0));
     let senders = Arc::new(Mutex::new(HashMap::<ChatId, String>::new()));
@@ -98,7 +102,9 @@ async fn process_messages(
                 tokio::spawn(async move {
                     let mut messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
                     for message in c {
-                        if let Some(m) = to_db_message(&bot_username, &message, &content.id).await {
+                        if let Some(m) =
+                            to_db_message(&bot_username, bot_userid, &message, &content.id).await
+                        {
                             let f = message
                                 .from
                                 .unwrap_or(format!("Deleted Account {}", m.sender.unwrap()));
@@ -147,13 +153,20 @@ async fn process_messages(
 
 async fn to_db_message(
     bot_username: &str,
+    bot_userid: UserId,
     message: &Message,
     chat_id: &ChatId,
 ) -> Option<types::Message> {
     if message.message_type != "message"
         || message
             .via_bot
-            .as_ref().map(|u| u == bot_username)
+            .as_ref()
+            .map(|u| u == bot_username)
+            .unwrap_or(false)
+        || message
+            .from_id
+            .as_ref()
+            .map(|u| u[4..] == bot_userid.0.to_string())
             .unwrap_or(false)
         || message.id < 1
     {
@@ -170,19 +183,18 @@ async fn to_db_message(
     }
 
     message.from_id.as_ref().map(|from_id| types::Message {
-            key: format!("-100{}_{}", chat_id, message.id),
-            text,
-            from: None,
-            sender: Some(match from_id.starts_with("user") {
-                true => UserId(from_id[4..].parse::<u64>().unwrap()).into(),
-                false => ChatId(MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap()),
-            }),
-            id: message.id,
-            via_bot: message.via_bot.clone(),
-            chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
-            date: chrono::DateTime::from_timestamp(message.date_unixtime.parse().unwrap(), 0)
-                .unwrap(),
-        })
+        key: format!("-100{}_{}", chat_id, message.id),
+        text,
+        from: None,
+        sender: Some(match from_id.starts_with("user") {
+            true => UserId(from_id[4..].parse::<u64>().unwrap()).into(),
+            false => ChatId(MAX_MARKED_CHANNEL_ID - from_id[7..].parse::<i64>().unwrap()),
+        }),
+        id: message.id,
+        via_bot: message.via_bot.clone(),
+        chat_id: ChatId(format!("-100{}", chat_id).parse::<i64>().unwrap()),
+        date: chrono::DateTime::from_timestamp(message.date_unixtime.parse().unwrap(), 0).unwrap(),
+    })
 }
 
 fn spawn_insert_task<T>(items: Vec<T>) -> JoinHandle<()>
@@ -228,7 +240,9 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
+        assert!(to_db_message("1", UserId(1), &msg, &ChatId(1))
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -252,7 +266,9 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
+        assert!(to_db_message("1", UserId(1), &msg, &ChatId(1))
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -276,7 +292,9 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
+        assert!(to_db_message("1", UserId(1), &msg, &ChatId(1))
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -335,8 +353,12 @@ mod import_test {
         );
 
         assert_eq!(
-            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).await.unwrap())
-                .unwrap(),
+            serde_json::to_string(
+                &to_db_message("1", UserId(1), &msg, &ChatId(1145141919))
+                    .await
+                    .unwrap()
+            )
+            .unwrap(),
             serde_json::to_string(&genuine_msg).unwrap()
         );
     }
@@ -403,9 +425,43 @@ mod import_test {
         );
 
         assert_eq!(
-            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).await.unwrap())
-                .unwrap(),
+            serde_json::to_string(
+                &to_db_message("1", UserId(1), &msg, &ChatId(1145141919))
+                    .await
+                    .unwrap()
+            )
+            .unwrap(),
             serde_json::to_string(&genuine_msg).unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn from_bot_test() {
+        let msg = serde_json::from_str::<super::Message>(
+            r#"
+            {
+                "id": 346,
+                "type": "message",
+                "date": "2024-01-10T17:20:31",
+                "date_unixtime": "1704878431",
+                "from": "Bot",
+                "from_id": "user114514",
+                "text": "还真是",
+                "text_entities": [
+                 {
+                  "type": "plain",
+                  "text": "还真是"
+                 }
+                ]
+               }
+        "#,
+        )
+        .unwrap();
+
+        assert!(
+            to_db_message("Bot", UserId(114514), &msg, &ChatId(1145141919))
+                .await
+                .is_none()
         );
     }
 }
