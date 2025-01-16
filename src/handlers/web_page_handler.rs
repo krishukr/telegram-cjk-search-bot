@@ -77,7 +77,7 @@ fn get_url_from_text(text: &String, offset: usize, length: usize) -> Option<Url>
     Url::parse(u16str.to_utf8().as_str()).ok()
 }
 
-fn get_url_in_whitelist(url: &Url) -> Option<Url> {
+pub fn get_url_in_whitelist(url: &Url) -> Option<Url> {
     if url.scheme() != "https" {
         return None;
     }

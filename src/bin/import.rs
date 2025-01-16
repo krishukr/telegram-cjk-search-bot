@@ -1,11 +1,13 @@
-// TODO: Import Web Pages in history, throttling may be needed
-
 use clap::Parser;
+use futures::future::join_all;
+use reqwest::Url;
 use serde::Deserialize;
 use serde_json::from_str;
 use std::{collections::HashMap, fs, path::PathBuf, sync::Arc, time::Duration};
 use telegram_cjk_search_bot::{
     db::{Db, Insertable},
+    handlers::get_url_in_whitelist,
+    ogp::read_open_graph,
     types,
 };
 use teloxide::prelude::*;
@@ -23,7 +25,10 @@ struct Content {
 
 #[derive(Deserialize, Clone)]
 struct Entity {
+    #[serde(rename = "type")]
+    entity_type: String,
     text: String,
+    href: Option<String>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -64,12 +69,15 @@ async fn main() {
     );
     log::info!("Paresed {} items.", content.messages.len());
 
-    let (messages_count, senders_count, handles) = process_messages(content, bot_username).await;
-    log::info!(
-        "Inserting {messages_count} messages and {senders_count} senders. Waiting for completion."
-    );
+    let (messages_count, url_count, senders_count, message_handles, web_page_handles) =
+        process_messages(content, bot_username).await;
+    log::info!("Found {messages_count} messages, {url_count} URLs, and {senders_count} senders.");
 
-    futures::future::join_all(handles).await;
+    log::info!("Crawling web pages.");
+    join_all(process_web_pages(web_page_handles).await).await;
+
+    log::info!("Waiting for database to complete indexing.");
+    join_all(message_handles).await;
     log::info!("Done.");
 }
 
@@ -84,10 +92,18 @@ fn read_content_from_file(file_path: &PathBuf) -> Content {
 async fn process_messages(
     content: Content,
     bot_username: String,
-) -> (usize, usize, Vec<JoinHandle<()>>) {
+) -> (
+    usize,
+    usize,
+    usize,
+    Vec<JoinHandle<()>>,
+    Vec<JoinHandle<Option<types::Message>>>,
+) {
     let messages_count = Arc::new(Mutex::new(0));
+    let url_count = Arc::new(Mutex::new(0));
     let senders = Arc::new(Mutex::new(HashMap::<ChatId, String>::new()));
 
+    let web_page_handles = Arc::new(Mutex::new(vec![]));
     let mut handles = futures::future::join_all(
         content
             .messages
@@ -95,10 +111,13 @@ async fn process_messages(
             .map(|c| c.to_vec())
             .map(|c| {
                 let messages_count = messages_count.clone();
+                let url_count = url_count.clone();
                 let senders = senders.clone();
+                let web_pages_handles = web_page_handles.clone();
                 let bot_username = bot_username.clone();
                 tokio::spawn(async move {
                     let mut messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
+                    let mut web_pages = vec![];
                     for message in c {
                         if let Some(m) = to_db_message(&bot_username, &message, &content.id).await {
                             let f = message
@@ -110,10 +129,30 @@ async fn process_messages(
                                 .entry(m.sender.unwrap())
                                 .and_modify(|e| *e = f.clone())
                                 .or_insert(f);
-                            messages_batch.push(m)
+                            messages_batch.push(m.clone());
+
+                            web_pages.extend(
+                                message
+                                    .text_entities
+                                    .iter()
+                                    .filter_map(|e| match e.entity_type.as_str() {
+                                        "link" => Url::parse(&e.text.clone()).ok(),
+                                        "text_link" => Url::parse(&e.href.clone()?).ok(),
+                                        _ => None,
+                                    })
+                                    .filter_map(|u| {
+                                        let m = m.clone();
+                                        let u = get_url_in_whitelist(&u)?;
+                                        Some(tokio::spawn(async move {
+                                            Some(m.clone().set_web_page(&read_open_graph(u).await?))
+                                        }))
+                                    }),
+                            );
                         }
                     }
                     *messages_count.lock().await += messages_batch.len();
+                    *url_count.lock().await += web_pages.len();
+                    web_pages_handles.lock().await.extend(web_pages.into_iter());
                     spawn_insert_task(messages_batch)
                 })
             }),
@@ -141,8 +180,10 @@ async fn process_messages(
 
     let res = (
         *messages_count.lock().await,
+        *url_count.lock().await,
         senders.lock().await.len(),
         handles,
+        Arc::try_unwrap(web_page_handles).unwrap().into_inner(),
     );
     res
 }
@@ -187,6 +228,20 @@ async fn to_db_message(
         web_page: None,
         thumbnail_url: None,
     })
+}
+
+async fn process_web_pages(
+    handles: Vec<JoinHandle<Option<types::Message>>>,
+) -> Vec<JoinHandle<()>> {
+    join_all(handles)
+        .await
+        .into_iter()
+        .filter_map(|x| x.unwrap())
+        .collect::<Vec<_>>()
+        .chunks(INSERT_BATCH_LIMIT)
+        .map(|x| x.to_vec())
+        .map(spawn_insert_task)
+        .collect::<Vec<_>>()
 }
 
 fn spawn_insert_task<T>(items: Vec<T>) -> JoinHandle<()>

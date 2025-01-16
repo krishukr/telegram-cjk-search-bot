@@ -55,7 +55,7 @@ impl Sender {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Message {
     pub key: String,
     pub text: String,
