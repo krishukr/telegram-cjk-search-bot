@@ -120,7 +120,8 @@ impl Message {
             self.key,
             crc32fast::hash(page.url.as_str().as_bytes())
         );
-        self.text = format!("{}\n{}", page.title, page.desc);
+        self.text = html_escape::decode_html_entities(&format!("{}\n{}", page.title, page.desc))
+            .to_string();
         self
     }
 }
