@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.2](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.2.1...v0.2.2) (2025-01-16)
+
+
+### Bug Fixes
+
+* **deps:** update patch updates ([#39](https://github.com/krishukr/telegram-cjk-search-bot/issues/39)) ([c95119a](https://github.com/krishukr/telegram-cjk-search-bot/commit/c95119a6da7b9dc7df59ec987a8784f9a9828a9c))
+* **deps:** update rust crate tokio to v1.43.0 ([#29](https://github.com/krishukr/telegram-cjk-search-bot/issues/29)) ([66cb13e](https://github.com/krishukr/telegram-cjk-search-bot/commit/66cb13ecf8c0499ae45440e55272744a4e75b4ac))
+* **import:** do not import the messages from the bot itself ([b2c31cb](https://github.com/krishukr/telegram-cjk-search-bot/commit/b2c31cba361eb48b0ce5c71420be96428c380433))
+
 ## [0.2.1](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.2.0...v0.2.1) (2024-09-30)
 
 
