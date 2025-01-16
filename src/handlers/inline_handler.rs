@@ -268,26 +268,46 @@ async fn construct_query_result(
     m: types::Message,
     formatted_result: String,
 ) -> ResponseResult<InlineQueryResult> {
-    Ok(InlineQueryResult::Article(
-        InlineQueryResultArticle::new(
-            &m.key,
-            formatted_result,
-            InputMessageContent::Text(
-                InputMessageContentText::new(format!(
-                    r#"「 {} 」 from <a href="{}">{}</a>"#,
-                    html_escape::encode_text(&m.text),
-                    m.link(),
-                    html_escape::encode_text(&generate_from_str(bot.clone(), &m).await?),
-                ))
-                .parse_mode(Html),
-            ),
-        )
-        .description(format!(
-            "{}@{}",
-            generate_from_str(bot.clone(), &m).await?,
-            m.format_time()
-        )),
-    ))
+    let mut article = InlineQueryResultArticle::new(
+        &m.key,
+        formatted_result,
+        InputMessageContent::Text(
+            InputMessageContentText::new(format!(
+                r#"「 {} 」 from <a href="{}">{}</a>{}"#,
+                html_escape::encode_text(&m.text),
+                m.link(),
+                html_escape::encode_text(&generate_from_str(bot.clone(), &m).await?),
+                generate_in_url_html(&m)
+            ))
+            .parse_mode(Html),
+        ),
+    )
+    .description(format!(
+        "{}@{}{}",
+        generate_from_str(bot.clone(), &m).await?,
+        m.format_time(),
+        generate_in_url_desc(&m)
+    ));
+    if let Some(u) = m.thumbnail_url {
+        article = article.thumbnail_url(u);
+    }
+    Ok(InlineQueryResult::Article(article))
+}
+
+fn generate_in_url_html(msg: &types::Message) -> String {
+    if let Some(u) = &msg.web_page {
+        format!(r#" in <a href="{}">{}</a>"#, u.as_str(), u.as_str())
+    } else {
+        String::default()
+    }
+}
+
+fn generate_in_url_desc(msg: &types::Message) -> String {
+    if let Some(u) = &msg.web_page {
+        format!(" in {}", u.as_str())
+    } else {
+        String::default()
+    }
 }
 
 pub(super) async fn clear_user_chats_cache() {
