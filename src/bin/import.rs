@@ -60,7 +60,9 @@ async fn main() {
     Db::new().init().await;
     let cli = Cli::parse();
 
-    let bot_username = format!("@{}", Bot::from_env().get_me().await.unwrap().username());
+    let me = Bot::from_env().get_me().await.unwrap();
+    let bot_username = format!("@{}", me.username());
+    let bot_userid = me.id;
     let content = read_content_from_file(&cli.file);
 
     assert!(
@@ -70,7 +72,7 @@ async fn main() {
     log::info!("Paresed {} items.", content.messages.len());
 
     let (messages_count, url_count, senders_count, message_handles, web_page_handles) =
-        process_messages(content, bot_username).await;
+        process_messages(content, bot_username, bot_userid).await;
     log::info!("Found {messages_count} messages, {url_count} URLs, and {senders_count} senders.");
 
     log::info!("Crawling web pages.");
@@ -92,6 +94,7 @@ fn read_content_from_file(file_path: &PathBuf) -> Content {
 async fn process_messages(
     content: Content,
     bot_username: String,
+    bot_userid: UserId,
 ) -> (
     usize,
     usize,
@@ -119,7 +122,9 @@ async fn process_messages(
                     let mut messages_batch = Vec::with_capacity(INSERT_BATCH_LIMIT);
                     let mut web_pages = vec![];
                     for message in c {
-                        if let Some(m) = to_db_message(&bot_username, &message, &content.id).await {
+                        if let Some(m) =
+                            to_db_message(&bot_username, bot_userid, &message, &content.id).await
+                        {
                             let f = message
                                 .from
                                 .unwrap_or(format!("Deleted Account {}", m.sender.unwrap()));
@@ -190,6 +195,7 @@ async fn process_messages(
 
 async fn to_db_message(
     bot_username: &str,
+    bot_userid: UserId,
     message: &Message,
     chat_id: &ChatId,
 ) -> Option<types::Message> {
@@ -198,6 +204,11 @@ async fn to_db_message(
             .via_bot
             .as_ref()
             .map(|u| u == bot_username)
+            .unwrap_or(false)
+        || message
+            .from_id
+            .as_ref()
+            .map(|u| u[4..] == bot_userid.0.to_string())
             .unwrap_or(false)
         || message.id < 1
     {
@@ -287,7 +298,9 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
+        assert!(to_db_message("1", UserId(1), &msg, &ChatId(1))
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -311,7 +324,9 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
+        assert!(to_db_message("1", UserId(1), &msg, &ChatId(1))
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -335,7 +350,9 @@ mod import_test {
         )
         .unwrap();
 
-        assert!(to_db_message("1", &msg, &ChatId(1)).await.is_none());
+        assert!(to_db_message("1", UserId(1), &msg, &ChatId(1))
+            .await
+            .is_none());
     }
 
     #[tokio::test]
@@ -394,8 +411,12 @@ mod import_test {
         );
 
         assert_eq!(
-            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).await.unwrap())
-                .unwrap(),
+            serde_json::to_string(
+                &to_db_message("1", UserId(1), &msg, &ChatId(1145141919))
+                    .await
+                    .unwrap()
+            )
+            .unwrap(),
             serde_json::to_string(&genuine_msg).unwrap()
         );
     }
@@ -462,9 +483,43 @@ mod import_test {
         );
 
         assert_eq!(
-            serde_json::to_string(&to_db_message("1", &msg, &ChatId(1145141919)).await.unwrap())
-                .unwrap(),
+            serde_json::to_string(
+                &to_db_message("1", UserId(1), &msg, &ChatId(1145141919))
+                    .await
+                    .unwrap()
+            )
+            .unwrap(),
             serde_json::to_string(&genuine_msg).unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn from_bot_test() {
+        let msg = serde_json::from_str::<super::Message>(
+            r#"
+            {
+                "id": 346,
+                "type": "message",
+                "date": "2024-01-10T17:20:31",
+                "date_unixtime": "1704878431",
+                "from": "Bot",
+                "from_id": "user114514",
+                "text": "还真是",
+                "text_entities": [
+                 {
+                  "type": "plain",
+                  "text": "还真是"
+                 }
+                ]
+               }
+        "#,
+        )
+        .unwrap();
+
+        assert!(
+            to_db_message("Bot", UserId(114514), &msg, &ChatId(1145141919))
+                .await
+                .is_none()
         );
     }
 }
