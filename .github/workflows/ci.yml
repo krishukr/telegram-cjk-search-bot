@@ -41,28 +41,28 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - name: Load and Push amd64 image
+      - name: Load and Push x86_64 image
         run: |
           docker load -i oci-image-x86_64-linux/result
           echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
-            docker tag $(docker images -q telegram-cjk-search-bot:latest) $tag
+            docker tag $(docker images -q telegram-cjk-search-bot:latest) $tag-x86_64
           done
           docker push --all-tags ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      # - name: Load and Push arm64 image
-      #   run: |
-      #     docker load -i oci-image-aarch64-linux/result
-      #     echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
-      #       docker tag $(docker images -q telegram-cjk-search-bot:latest) $tag-arm64
-      #     done
-      #     docker push --all-tags ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      # - name: Create and push multi-arch manifest
-      #   run: |
-      #     echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
-      #       docker manifest create $tag \
-      #         -a ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag-amd64 \
-      #         -a ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag-arm64
-      #       docker manifest push $tag
-      #     done
+      - name: Load and Push aarch_64 image
+        run: |
+          docker load -i oci-image-aarch64-linux/result
+          echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
+            docker tag $(docker images -q telegram-cjk-search-bot:latest) $tag-aarch64
+          done
+          docker push --all-tags ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      - name: Create and push multi-arch manifest
+        run: |
+          echo "${{ steps.meta.outputs.tags }}" | while IFS= read -r tag; do
+            docker manifest create $tag \
+              -a ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag-x86_64 \
+              -a ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$tag-aarch64
+            docker manifest push $tag
+          done
 
   ssh-deploy:
     runs-on: self-hosted

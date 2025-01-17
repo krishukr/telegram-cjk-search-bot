@@ -83,41 +83,16 @@
                 })
               ];
             };
-            craneLib = (crane.mkLib pkgs).overrideToolchain pkgs.rustToolchain;
-
-            nativeBuildInputs = with pkgs; [
-              rustToolchain
-              pkg-config
-            ];
-            buildInputs = with pkgs; [ openssl ];
-
-            src = craneLib.cleanCargoSource ./.;
-            commonArgs = {
-              inherit src nativeBuildInputs buildInputs;
+            bin = pkgs.lib.makeOverridable (import ./nix/bin.nix) {
+              inherit
+                system
+                pkgs
+                nixpkgs
+                rust-overlay
+                crane
+                ;
             };
-            cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-            bin = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
-
-            dockerImage = pkgs.dockerTools.buildLayeredImage {
-              name = "telegram-cjk-search-bot";
-              tag = "latest";
-              contents = [
-                bin
-                pkgs.dockerTools.caCertificates
-              ];
-              extraCommands = ''
-                ln -s ${bin}/bin app
-              '';
-              config = {
-                Env = [
-                  "MEILISEARCH_HOST=http://meilisearch:7700"
-                  "TELOXIDE_TOKEN="
-                  "RUST_LOG=INFO"
-                  "TZ=Asia/Shanghai"
-                ];
-                Cmd = [ "${bin}/bin/bot" ];
-              };
-            };
+            dockerImage = pkgs.lib.makeOverridable (import ./nix/docker-image.nix) { inherit pkgs bin; };
           }
         );
     in
@@ -129,7 +104,7 @@
             inputsFrom = [ bin ];
 
             packages = with pkgs; [
-              # rust-analyzer
+              rustToolchain
               lldb_15
 
               commitizen
@@ -142,10 +117,27 @@
       );
 
       packages = forEachSupportedSystem (
-        { bin, dockerImage, ... }:
         {
+          pkgs,
+          bin,
+          dockerImage,
+          ...
+        }:
+        rec {
           inherit bin dockerImage;
           default = dockerImage;
+
+          bin-x86_64 = bin.override { target = "x86_64-unknown-linux-musl"; };
+          bin-aarch64 = bin.override { target = "aarch64-unknown-linux-musl"; };
+
+          dockerImage-x86_64 = dockerImage.override {
+            pkgs = pkgs.pkgsCross.musl64;
+            bin = bin-x86_64;
+          };
+          dockerImage-aarch64 = dockerImage.override {
+            pkgs = pkgs.pkgsCross.aarch64-multiplatform-musl;
+            bin = bin-aarch64;
+          };
         }
       );
     };
