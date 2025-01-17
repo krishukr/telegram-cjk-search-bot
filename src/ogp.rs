@@ -2,7 +2,7 @@ use cached::proc_macro::cached;
 use reqwest::{IntoUrl, Url};
 use tl::{NodeHandle, Parser};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebPage {
     pub url: Url,
     pub title: String,
@@ -12,11 +12,20 @@ pub struct WebPage {
 
 const APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
 
-pub async fn read_open_graph<T>(url: T) -> Option<WebPage>
-where
-    T: IntoUrl,
-{
-    let body = get_url_body(url.into_url().ok()?).await?;
+#[cached(
+    time = 300,
+    sync_writes = true,
+    key = "Url",
+    convert = r#"{ url.clone().into_url().ok()? }"#
+)]
+pub async fn read_open_graph(url: impl IntoUrl + Clone) -> Option<WebPage> {
+    let client = reqwest::Client::builder()
+        .user_agent(APP_USER_AGENT)
+        .timeout(std::time::Duration::from_millis(5000))
+        .build()
+        .ok()?;
+    let body = client.get(url).send().await.ok()?.text().await.ok()?;
+
     let dom = tl::parse(&body, tl::ParserOptions::default()).ok()?;
     let parser = dom.parser();
     Some(WebPage {
@@ -38,15 +47,6 @@ where
             .map(|x| x.get_attr(parser))
             .flatten(),
     })
-}
-
-#[cached(time = 300)]
-async fn get_url_body(url: Url) -> Option<String> {
-    let client = reqwest::Client::builder()
-        .user_agent(APP_USER_AGENT)
-        .build()
-        .ok()?;
-    client.get(url).send().await.ok()?.text().await.ok()
 }
 
 trait ElementHandle {
