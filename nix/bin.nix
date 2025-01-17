@@ -22,8 +22,9 @@ let
     )
   );
 
-  nativeBuildInputs = with crossPkgs; [ pkg-config ];
-  buildInputs = with (if isStatic then crossPkgs.pkgsStatic else crossPkgs); [ openssl ];
+  nativeBuildInputs = with crossPkgs.pkgsBuildHost; [ pkg-config ];
+  buildInputs =
+    with (if isStatic then crossPkgs.pkgsHostHost.pkgsStatic else crossPkgs.pkgsHostHost); [ openssl ];
 
   src = craneLib.cleanCargoSource ../.;
   commonArgs = {
