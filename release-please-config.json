@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "b49dc8972b20180ac20f1d7aef7f158f355a9d24",
+  "packages": {
+    ".": {
+      "release-type": "rust",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "docker-compose.yml"
+        }
+      ]
+    }
+  }
+}
