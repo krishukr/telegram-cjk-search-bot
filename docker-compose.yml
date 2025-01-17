@@ -2,7 +2,7 @@ version: '3'
 
 services:
   bot:
-    image: ghcr.io/krishukr/telegram-cjk-search-bot:0.2 # x-release-please-minor
+    image: ghcr.io/krishukr/telegram-cjk-search-bot:${MAJOR}.${MINOR}
     restart: unless-stopped
     volumes:
       - ./history:/app/history

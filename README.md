@@ -15,7 +15,7 @@ A simple message-searching bot that supports CJK (Chinese, Japanese, Korean) lan
 1. Create a bot using [@BotFather](https://t.me/botfather) and save the token for later use.
 1. Edit the bot to turn ON inline mode and turn OFF privacy mode.
 1. Find a place to store all the data.
-1. `wget https://raw.githubusercontent.com/krishukr/telegram-cjk-search-bot/master/docker-compose.yml`
+1. `wget https://raw.githubusercontent.com/krishukr/telegram-cjk-search-bot/master/docker-compose.yml && wget https://raw.githubusercontent.com/krishukr/telegram-cjk-search-bot/master/.env`
 1. Edit the `docker-compose.yml` file to replace `TELOXIDE_TOKEN=xxx:xxx` with your token obtained from BotFather.
 1. `docker compose up -d`
 1. Add the bot to a chat of which you are the owner or admin. **Note: Supergroup only.**
