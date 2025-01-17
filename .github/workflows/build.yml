@@ -9,26 +9,22 @@ jobs:
     strategy:
       matrix:
         include:
-          - system: "x86_64-linux"
-          # - system: "aarch64-linux"
+          - arch: "x86_64"
+          - arch: "aarch64"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # - name: Install Qemu
-      #   uses: docker/setup-qemu-action@v3
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v16
-        # with:
-        #   extra-conf: "extra-platforms = aarch64-linux"
       - name: Setup cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
       - name: Build image
-        run: nix build .#packages.${{ matrix.system }}.default
+        run: nix build .#dockerImage-${{ matrix.arch }}
       - name: Upload image to artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: oci-image-${{ matrix.system }}
+          name: oci-image-${{ matrix.arch }}-linux
           path: result
           if-no-files-found: error
           compression-level: 0

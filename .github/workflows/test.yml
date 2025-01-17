@@ -1,4 +1,4 @@
-name: Build
+name: Test
 
 on: [ pull_request ]
 
@@ -7,6 +7,18 @@ env:
 
 jobs:
   build:
-    permissions:
-      actions: write
-    uses: ./.github/workflows/build.yml
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
+      - name: Setup cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Build dynamic binary
+        run: nix build .#bin
+      - name: Upload binary to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+            path: ./result/bin/
