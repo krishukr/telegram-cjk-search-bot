@@ -6,15 +6,17 @@ on:
       - master
   workflow_dispatch: 
   
-permissions:
-  contents: write
-  pull-requests: write
-  
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
         with:
-          token: ${{ secrets.KRISHUKR_PAT }}
+          token: ${{ steps.generate-token.outputs.token }}
