@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.1](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.3.0...v0.3.1) (2025-01-18)
+
+
+### Bug Fixes
+
+* **import:** update default file path ([f6b0d9c](https://github.com/krishukr/telegram-cjk-search-bot/commit/f6b0d9cf948fcea860c3cde987aa49301ae9eea6))
+* **inline:** limit max input message length ([3839627](https://github.com/krishukr/telegram-cjk-search-bot/commit/3839627f77dd25b8f2ad9ae88c38b206d1e5411a))
+* **ogp:** multithread reading ([0a3bd27](https://github.com/krishukr/telegram-cjk-search-bot/commit/0a3bd271678a394b0f474f9bc9ed7f9999e2d332))
+* **web_page:** remove t.me from whitelist ([25eaa31](https://github.com/krishukr/telegram-cjk-search-bot/commit/25eaa31309ae8a0413d8faecade111bc67dc10a9))
+
 ## [0.3.0](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.2.2...v0.3.0) (2025-01-18)
 
 
