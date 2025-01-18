@@ -17,13 +17,12 @@ const APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PK
 
 #[cached(
     time = 300,
-    sync_writes = true,
     key = "Url",
     convert = r#"{ url.clone().into_url().ok()? }"#
 )]
 pub async fn read_open_graph(url: impl IntoUrl + Clone) -> Option<WebPage> {
-    let retry_policy = ExponentialBackoff::builder()
-        .build_with_total_retry_duration_and_max_retries(Duration::from_secs(60));
+    let retry_policy =
+        ExponentialBackoff::builder().build_with_total_retry_duration(Duration::from_secs(60));
     let client = reqwest_middleware::ClientBuilder::new(
         reqwest::Client::builder()
             .user_agent(APP_USER_AGENT)
