@@ -16,5 +16,3 @@ jobs:
     steps:
       - name: Run Release Please
         uses: googleapis/release-please-action@v4
-        with:
-          token: ${{ secrets.KRISHUKR_PAT }}
