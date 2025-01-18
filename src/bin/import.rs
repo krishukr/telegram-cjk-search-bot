@@ -50,7 +50,7 @@ const MAX_MARKED_CHANNEL_ID: i64 = -1000000000000;
 #[command(author, version, long_about = None)]
 #[command(about = "Import chat history from a json file to meilisearch db.")]
 struct Cli {
-    #[arg(default_value = "./history/result.json")]
+    #[arg(default_value = "/app/history/result.json")]
     file: PathBuf,
 }
 
