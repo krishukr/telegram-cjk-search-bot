@@ -9,7 +9,7 @@ use crate::{
     ogp::{read_open_graph, WebPage},
 };
 
-const WHITELISTED_DOMAINS: [&str; 12] = [
+const WHITELISTED_DOMAINS: [&str; 11] = [
     "fixupx.com",
     "www.fixupx.com",
     "fxtwitter.com",
@@ -21,7 +21,6 @@ const WHITELISTED_DOMAINS: [&str; 12] = [
     "youtu.be",
     "github.com",
     "www.github.com",
-    "t.me",
 ];
 
 const REDIRECT_DOMAINS: [(&str, &str); 6] = [
