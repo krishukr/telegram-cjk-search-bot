@@ -11,6 +11,8 @@ use teloxide::{
     ApiError, RequestError,
 };
 
+const MAX_MESSAGE_LENGTH: usize = 3072;
+
 #[derive(Parser)]
 #[command(name = crate::BOT_USERNAME.get().unwrap())]
 #[command(disable_version_flag = true, disable_help_flag = true)]
@@ -289,7 +291,7 @@ async fn construct_query_result(
         InputMessageContent::Text(
             InputMessageContentText::new(format!(
                 r#"「 {} 」 from <a href="{}">{}</a>{}"#,
-                html_escape::encode_text(&m.text),
+                html_escape::encode_text(&limit_string_length(m.text.clone())),
                 m.link(),
                 html_escape::encode_text(&generate_from_str(bot.clone(), &m).await?),
                 generate_in_url_html(&m)
@@ -323,6 +325,27 @@ fn generate_in_url_desc(msg: &types::Message) -> String {
     } else {
         String::default()
     }
+}
+
+fn limit_string_length(input: String) -> String {
+    if input.chars().count() <= MAX_MESSAGE_LENGTH {
+        return input;
+    }
+
+    let mut truncated = String::with_capacity(MAX_MESSAGE_LENGTH + 3);
+    let mut char_count: usize = 0;
+
+    for c in input.chars() {
+        if char_count >= MAX_MESSAGE_LENGTH {
+            break;
+        }
+
+        truncated.push(c);
+        char_count += 1;
+    }
+    truncated.push_str("...");
+
+    truncated
 }
 
 pub(super) async fn clear_user_chats_cache() {
