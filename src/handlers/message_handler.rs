@@ -7,7 +7,7 @@ pub async fn message_handler(bot: Bot, msg: Message, me: Me) -> ResponseResult<(
 
     if msg.thread_id.is_some()
         || !msg.chat.is_chat()
-        || msg.via_bot.as_ref().map_or(false, |b| b.id == me.id)
+        || msg.via_bot.as_ref().is_some_and(|b| b.id == me.id)
     {
         Ok(())
     } else if msg.chat.is_private() {

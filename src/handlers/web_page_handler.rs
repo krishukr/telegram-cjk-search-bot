@@ -32,9 +32,9 @@ const REDIRECT_DOMAINS: [(&str, &str); 6] = [
     ("zhuanlan.zhihu.com", "zhuanlan.fxzhihu.com"),
 ];
 
-pub async fn web_page_handler(msg: Message) -> () {
+pub async fn web_page_handler(msg: Message) {
     if msg.entities().is_none() {
-        return ();
+        return;
     }
     let e = msg.entities().unwrap_or_default();
 
@@ -89,11 +89,11 @@ pub fn get_url_in_whitelist(url: &Url) -> Option<Url> {
 
 fn get_domain_in_whitelist(domain: &str) -> Option<String> {
     if let Some(&d) = WHITELISTED_DOMAINS.iter().find(|&&x| x == domain) {
-        return Some(d.to_string());
+        Some(d.to_string())
     } else if let Some(&d) = REDIRECT_DOMAINS.iter().find(|&&x| x.0 == domain) {
-        return Some(d.1.to_string());
+        Some(d.1.to_string())
     } else {
-        return None;
+        None
     }
 }
 

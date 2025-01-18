@@ -39,11 +39,11 @@ impl ChatAction {
             ChatAction::Start => {
                 Db::new().insert_chat_with_id(chat_id).await;
                 Ok(())
-            },
+            }
             ChatAction::Stop => {
                 Db::new().delete_chat_with_id(chat_id).await;
                 Ok(())
-            },
+            }
         }
     }
 

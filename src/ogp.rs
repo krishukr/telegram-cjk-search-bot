@@ -51,8 +51,7 @@ pub async fn read_open_graph(url: impl IntoUrl + Clone) -> Option<WebPage> {
         thumbnail_url: dom
             .query_selector("meta[property='og:image']")?
             .next()
-            .map(|x| x.get_attr(parser))
-            .flatten(),
+            .and_then(|x| x.get_attr(parser)),
     })
 }
 

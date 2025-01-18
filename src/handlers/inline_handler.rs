@@ -333,15 +333,11 @@ fn limit_string_length(input: String) -> String {
     }
 
     let mut truncated = String::with_capacity(MAX_MESSAGE_LENGTH + 3);
-    let mut char_count: usize = 0;
-
-    for c in input.chars() {
-        if char_count >= MAX_MESSAGE_LENGTH {
+    for (i, c) in input.chars().enumerate() {
+        if i >= MAX_MESSAGE_LENGTH {
             break;
         }
-
         truncated.push(c);
-        char_count += 1;
     }
     truncated.push_str("...");
 

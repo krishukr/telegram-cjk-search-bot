@@ -200,16 +200,11 @@ async fn to_db_message(
     chat_id: &ChatId,
 ) -> Option<types::Message> {
     if message.message_type != "message"
-        || message
-            .via_bot
-            .as_ref()
-            .map(|u| u == bot_username)
-            .unwrap_or(false)
+        || message.via_bot.as_ref().is_some_and(|u| u == bot_username)
         || message
             .from_id
             .as_ref()
-            .map(|u| u[4..] == bot_userid.0.to_string())
-            .unwrap_or(false)
+            .is_some_and(|u| u[4..] == bot_userid.0.to_string())
         || message.id < 1
     {
         return None;
