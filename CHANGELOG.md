@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.2.2...v0.3.0) (2025-01-18)
+
+
+### Features
+
+* search description of URLs in messages ([#43](https://github.com/krishukr/telegram-cjk-search-bot/issues/43)) ([5caa298](https://github.com/krishukr/telegram-cjk-search-bot/commit/5caa29879cbc01caddf58f73addbc29201d1e646))
+
 ## [0.2.2](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.2.1...v0.2.2) (2025-01-16)
 
 
