@@ -8,13 +8,14 @@
 }:
 let
   isStatic = (builtins.stringLength target > 0);
-  crossPkgs = import nixpkgs (
+  basePkgs = import nixpkgs (
     {
       localSystem = system;
       overlays = [ rust-overlay.overlays.default ];
     }
     // pkgs.lib.optionalAttrs isStatic { crossSystem.config = target; }
   );
+  crossPkgs = (if isStatic then basePkgs.pkgsStatic else basePkgs);
   craneLib = (crane.mkLib crossPkgs).overrideToolchain (
     p:
     p.rust-bin.stable.latest.default.override (
@@ -23,8 +24,7 @@ let
   );
 
   nativeBuildInputs = with crossPkgs.pkgsBuildHost; [ pkg-config ];
-  buildInputs =
-    with (if isStatic then crossPkgs.pkgsHostHost.pkgsStatic else crossPkgs.pkgsHostHost); [ openssl ];
+  buildInputs = pkgs.lib.optionals (!isStatic) (with crossPkgs.pkgsHostHost; [ openssl ]);
 
   src = craneLib.cleanCargoSource ../.;
   commonArgs = {
@@ -38,8 +38,12 @@ craneLib.buildPackage (
     CARGO_BUILD_TARGET = target;
     CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
 
-    "CARGO_TARGET_${
-      pkgs.lib.toUpper (builtins.replaceStrings [ "-" ] [ "_" ] target)
-    }_LINKER" = "${crossPkgs.stdenv.cc.targetPrefix}cc";
+    "CARGO_TARGET_${pkgs.lib.toUpper (builtins.replaceStrings [ "-" ] [ "_" ] target)}_LINKER" =
+      "${crossPkgs.stdenv.cc.targetPrefix}cc";
+
+    OPENSSL_STATIC = "true";
+    OPENSSL_DIR = "${crossPkgs.openssl.dev}";
+    OPENSSL_LIB_DIR = "${crossPkgs.openssl.out}/lib";
+    OPENSSL_INCLUDE_DIR = "${crossPkgs.openssl.dev}/include/";
   }
 )
