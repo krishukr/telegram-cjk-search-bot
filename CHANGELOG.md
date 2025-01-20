@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.3.1...v0.3.2) (2025-01-20)
+
+
+### Bug Fixes
+
+* **build:** binary on aarch64 is not fully statically linked ([d28b4aa](https://github.com/krishukr/telegram-cjk-search-bot/commit/d28b4aa008c7599617f3272caeff9cf05b862e62))
+
 ## [0.3.1](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.3.0...v0.3.1) (2025-01-18)
 
 
