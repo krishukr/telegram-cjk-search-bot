@@ -15,7 +15,7 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v16
       - name: Setup cache
-        uses: DeterminateSystems/magic-nix-cache-action@v8
+        uses: DeterminateSystems/magic-nix-cache-action@v9
       - name: Build dynamic binary
         run: nix build .#bin
       - name: Upload binary to artifacts
