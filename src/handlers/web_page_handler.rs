@@ -9,13 +9,13 @@ use crate::{
     ogp::{read_open_graph, WebPage},
 };
 
-const WHITELISTED_DOMAINS: [&str; 11] = [
+const WHITELISTED_DOMAINS: [&str; 9] = [
     "fixupx.com",
     "www.fixupx.com",
     "fxtwitter.com",
     "www.fxtwitter.com",
-    "www.fxzhihu.com",
-    "zhuanlan.fxzhihu.com",
+    // "www.fxzhihu.com",
+    // "zhuanlan.fxzhihu.com",
     "www.youtube.com",
     "youtube.com",
     "youtu.be",
@@ -23,13 +23,13 @@ const WHITELISTED_DOMAINS: [&str; 11] = [
     "www.github.com",
 ];
 
-const REDIRECT_DOMAINS: [(&str, &str); 6] = [
+const REDIRECT_DOMAINS: [(&str, &str); 4] = [
     ("x.com", "fixupx.com"),
     ("www.x.com", "www.fixupx.com"),
     ("twitter.com", "fxtwitter.com"),
     ("www.twitter.com", "www.fxtwitter.com"),
-    ("www.zhihu.com", "www.fxzhihu.com"),
-    ("zhuanlan.zhihu.com", "zhuanlan.fxzhihu.com"),
+    // ("www.zhihu.com", "www.fxzhihu.com"),
+    // ("zhuanlan.zhihu.com", "zhuanlan.fxzhihu.com"),
 ];
 
 pub async fn web_page_handler(msg: Message) {
@@ -132,7 +132,7 @@ mod web_page_handler_test {
 
     #[test]
     fn domain_whitelist_test() {
-        let domain = "www.fxzhihu.com";
+        let domain = "www.fxtwitter.com";
         assert_eq!(get_domain_in_whitelist(domain).unwrap(), domain.to_string());
     }
 
