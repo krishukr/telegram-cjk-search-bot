@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.3.2...v0.3.3) (2025-02-10)
+
+
+### Bug Fixes
+
+* **deps:** update patch updates ([#45](https://github.com/krishukr/telegram-cjk-search-bot/issues/45)) ([c42ead5](https://github.com/krishukr/telegram-cjk-search-bot/commit/c42ead5287318b8b7635bb5f56dc5441e1cd35bb))
+* **handler/web_page:** disable fxzhihu ([e754d4c](https://github.com/krishukr/telegram-cjk-search-bot/commit/e754d4c4f1e596504ca64f8dc4eb6229e6b6937e))
+
 ## [0.3.2](https://github.com/krishukr/telegram-cjk-search-bot/compare/v0.3.1...v0.3.2) (2025-01-20)
 
 
