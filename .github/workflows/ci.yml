@@ -82,4 +82,4 @@ jobs:
           script: >
             cd ./telegram-cjk-search-bot &&
             sudo docker compose pull &&
-            sudo docker compose up -d
+            sudo docker compose up -d --wait
