@@ -2,6 +2,9 @@ name: Test & Build
 
 on:
   workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: true
 
 jobs:
   build:

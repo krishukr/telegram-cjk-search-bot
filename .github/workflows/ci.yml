@@ -2,7 +2,7 @@ name: Build & Deploy
 
 on:
   push:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -13,6 +13,8 @@ env:
 jobs:
   build:
     uses: ./.github/workflows/build.yml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   publish:
     runs-on: ubuntu-latest
